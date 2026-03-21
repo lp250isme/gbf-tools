@@ -38,7 +38,7 @@
   );
 
   const observer = new MutationObserver(() => {
-    // 戰鬥次數選單：在最上方加入 15~11 倒序選項，預設選中 15
+    // 水滴選單：在最上方加入 15~11 倒序選項，預設選中 15
     const numTime = document.querySelector("select.num-time");
     if (numTime && !numTime.dataset.patched) {
       numTime.dataset.patched = "1";

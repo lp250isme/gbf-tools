@@ -48,6 +48,14 @@
 - `https://game.granbluefantasy.jp/*`
 - `https://gbf.game.mbga.jp/*`
 
+## ⚠️ 免責聲明
+
+本腳本透過瀏覽器使用者腳本管理器（如 Tampermonkey）注入自訂的 JavaScript 與 CSS，以修改遊戲網頁的前端顯示與行為。**此行為可能違反遊戲官方的服務條款。**
+
+使用本腳本所產生的一切後果（包括但不限於帳號被警告、停權或永久封禁），**由使用者自行承擔，作者概不負責。**
+
+請在充分了解風險後自行決定是否使用。
+
 ## 授權條款
 
 [MIT License](LICENSE)

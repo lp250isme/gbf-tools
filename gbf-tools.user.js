@@ -4,7 +4,7 @@
 // @version      0.1.3
 // @description  碧藍幻想瀏覽器輔助工具：隱藏滾動條、側邊欄、自動選取下拉選單、保持 BGM 播放等
 // @icon         http://game.granbluefantasy.jp/favicon.ico
-// @author       biuuu
+// @author       biuuu (原作), kv (修改)
 // @match        *://game.granbluefantasy.jp/*
 // @match        *://gbf.game.mbga.jp/*
 // @run-at       document-body

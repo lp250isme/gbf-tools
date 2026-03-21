@@ -2,6 +2,17 @@
 
 針對 [碧藍幻想（Granblue Fantasy）](https://game.granbluefantasy.jp/) 網頁版的瀏覽器使用者腳本，提供多項介面優化與操作便利功能。
 
+## 致謝與聲明
+
+本腳本基於 [biuuu](https://gist.github.com/biuuu) 的 [blhx.user.js](https://gist.github.com/biuuu/b5fca321fc232b79161095c71a26f43f) 修改而來。原作提供了隱藏滾動條、隱藏側邊欄、可複製救援碼、保持 BGM 播放等基礎功能。
+
+本 fork 由 [kv](https://github.com/kv) 在原作基礎上新增以下功能：
+- 戰鬥次數選單擴充（15～11 倒序選項）
+- 技能等級選單自動選最高
+- 數量設定選單自動半選
+
+感謝原作者 biuuu 的貢獻！如有任何版權疑慮，請透過 Issue 聯繫，將立即處理。
+
 ## 功能一覽
 
 | 功能 | 說明 |

@@ -37,6 +37,10 @@
     false
   );
 
+  const triggerChange = (el) => {
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+
   const observer = new MutationObserver(() => {
     // 水滴選單：在最上方加入 15~11 倒序選項，預設選中 15
     const numTime = document.querySelector("select.num-time");
@@ -51,6 +55,7 @@
       }
       numTime.prepend(frag);
       numTime.value = "15";
+      triggerChange(numTime);
     }
 
     // 技能等級選單：自動選擇最後一個（最高等級）
@@ -60,6 +65,7 @@
       const opts = skillLevel.options;
       if (opts.length > 0) {
         skillLevel.value = opts[opts.length - 1].value;
+        triggerChange(skillLevel);
       }
     }
 
@@ -79,6 +85,7 @@
           }
         }
         setNum.value = chosen.value;
+        triggerChange(setNum);
       }
     }
   });

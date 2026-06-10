@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         碧藍幻想打完了
 // @namespace    https://gist.github.com/biuuu
-// @version      0.2.0
+// @version      0.2.1
 // @description  多人戰結算時用 Bark 推播到手機（掛機刷本，人不在電腦前也收得到）
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       biuuu (原作), kv (修改)
@@ -25,13 +25,14 @@
 
   /* ─────────────────────────────────────
    * Bark 推播：用 GM_xmlhttpRequest 跨網域呼叫（免 CORS）
-   * 版面依 Bark 慣例——title 短、body 放內容
+   * level=passive：靜音投遞——不震動、不響鈴、不亮屏，
+   *   只默默進通知中心，掛機刷本不被打擾，有空再拉下來看
    * ───────────────────────────────────── */
   const notifyBark = (title, body) => {
     if (!BARK_KEY || BARK_KEY.indexOf("填入") !== -1) return; // 沒設 key 就不送
     const url =
       `https://api.day.app/${BARK_KEY}/${encodeURIComponent(title)}/${encodeURIComponent(body)}` +
-      `?group=${encodeURIComponent("碧藍幻想")}&sound=glass&icon=${encodeURIComponent(BARK_ICON)}`;
+      `?group=${encodeURIComponent("碧藍幻想")}&level=passive&icon=${encodeURIComponent(BARK_ICON)}`;
     GM_xmlhttpRequest({ method: "GET", url });
   };
 

@@ -1,9 +1,0 @@
-#!name=GBF Tools
-#!desc=碧藍幻想瀏覽器輔助工具：隱藏滾動條、側邊欄、自動選取下拉選單、保持 BGM 播放等
-#!author=biuuu (原作), kv (修改)
-
-[Script]
-gbf-tools = type=http-response, pattern=^https?://(game\.granbluefantasy\.jp|gbf\.game\.mbga\.jp)/, requires-body=1, max-size=1048576, script-path=https://raw.githubusercontent.com/lp250isme/gbf-tools/main/gbf-tools.surge.js, script-update-interval=86400
-
-[MITM]
-hostname = %APPEND% game.granbluefantasy.jp, gbf.game.mbga.jp

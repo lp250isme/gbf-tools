@@ -43,6 +43,20 @@
 
 或者手動將 `gbf-tools.user.js` 的內容複製到腳本管理器中新建的腳本。
 
+## 額外腳本：打完了推播（Bark）
+
+`gbf-battle-done.user.js` 是一支**獨立**的小腳本（與主腳本互不相干，可單獨安裝）：當多人戰進到結算畫面（`#result_multi/…`）時，透過 [Bark](https://bark.day.app/) 推播一則通知到你的 iPhone——掛機刷本、人不在電腦前也收得到。
+
+安裝方式同上（點 `gbf-battle-done.user.js` 的「Raw」或複製內容到腳本管理器）。安裝後**務必**打開腳本，把開頭的：
+
+```js
+const BARK_KEY = "在此填入你的 BARK_KEY";
+```
+
+換成你自己的 Bark key（手機開 [Bark App](https://apps.apple.com/app/bark-customed-notifications/id1403753865) → 複製首頁那串 key）。
+
+> ⚠ 本 repo 為**公開**，請勿把含真實 key 的版本提交回來——key 只填在你本機的腳本管理器裡。
+
 ## 適用網址
 
 - `https://game.granbluefantasy.jp/*`

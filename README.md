@@ -127,6 +127,35 @@ wrangler deploy
 
 > 標頭的 `@connect *` 允許連到你設定的任何網域；要收緊可改成 `@connect <你的網域>`。
 
+## 額外腳本：元氣回滿通知（探検隊）
+
+`gbf-genki-notify.user.js` 是一支**獨立**小腳本：探検隊「元氣」回滿時，推一則通知到你手機。原理是讀探検隊頁面**遊戲自己顯示的回復倒數**（時:分），算出全滿的絕對時刻，上報到你自架的排程端點，**到點才推**——所以你關掉瀏覽器、人不在電腦前也收得到。
+
+它只在你打開探検隊頁時讀取一次（元氣變動＝你又派了探險時自然重抓），完全不輪詢遊戲伺服器、不自動操作任何東西。
+
+**需自備後端才會啟用**（預設留空＝靜靜跑、什麼都不送）。填腳本開頭：
+
+```js
+const SCHEDULE_API = "";   // 你自架的排程端點，例：https://你的網域/api/schedule
+const TOKEN        = "";   // 對應的 bearer token
+const ICON         = "";   // 選填：通知圖示 URL（建議放遊戲 icon）
+```
+
+> ⚠ 本 repo 為**公開**，真實值只填在你本機的腳本管理器裡，勿提交回來。`@connect *` 允許連你設的任何網域，要收緊改成 `@connect <你的網域>`。
+
+### 端點契約（任何能「延遲推播」的後端都行）
+
+| 方法 | 行為 |
+|------|------|
+| `POST <SCHEDULE_API>` body `{ key, fireAt, title, body, icon, url, group, level }` | 排一則 `fireAt`（毫秒絕對時刻）才送的推播；**同 `key` 覆寫**（重派只更新時刻、不堆一排） |
+| `POST <SCHEDULE_API>` body `{ key, cancel: true }` | 取消該 `key` 的排程（元氣已滿時用） |
+
+用 `Authorization: Bearer <TOKEN>` 驗證。本腳本用的 `key` 是 `gbf-genki`。
+
+#### 參考實作（Cloudflare Workers + Durable Object alarm，免費）
+
+關鍵是「延遲到 `fireAt` 才送」，用 Durable Object 的 `alarm()` 最省（不吃 KV 額度、關瀏覽器也會觸發）。核心：把 `{key, fireAt, payload}` 存進 DO 的 SQLite，`setAlarm(最早的 fireAt)`；`alarm()` 觸發時把到期的取出送推播（這裡接 [Bark](https://bark.day.app/) 或任何推播服務）再刪除，並把 alarm 對齊下一筆。完整可參考本作者 go.kvcc.me 的 `Scheduler` 類別作法。
+
 ## 適用網址
 
 - `https://game.granbluefantasy.jp/*`

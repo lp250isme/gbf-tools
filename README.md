@@ -57,6 +57,76 @@ const BARK_KEY = "在此填入你的 BARK_KEY";
 
 > ⚠ 本 repo 為**公開**，請勿把含真實 key 的版本提交回來——key 只填在你本機的腳本管理器裡。
 
+## 額外腳本：捷徑列（可選雲端同步）
+
+`gbf-shortcut-bar.user.js` 是一支**獨立**小腳本：在遊戲底部寶物列上方加一排**可自訂的捷徑按鈕**（標題＋連結），點了直接跳到指定頁——GBF 內部路徑（如 `quest`、`party/index/0/npc/0`）或任意完整網址皆可。按 **⚙** 進編輯模式可新增／修改／刪除、拖曳排序。
+
+安裝方式同上（點 `gbf-shortcut-bar.user.js` 的「Raw」或複製內容到腳本管理器）。
+
+**預設就能用**：什麼都不用設，捷徑清單存在你瀏覽器本機（腳本管理器的 GM 儲存），完全離線、不連任何伺服器。
+
+### 跨裝置同步（選用，需自備後端）
+
+想讓多台裝置／瀏覽器共用同一份捷徑，填腳本開頭這兩個——**用你自己的**端點，本腳本不綁定任何特定服務：
+
+```js
+const SYNC_API   = "";  // 例：https://你的網域/api/cfg?k=gbf-shortcuts
+const SYNC_TOKEN = "";  // 對應的 bearer token
+```
+
+> ⚠ 本 repo 為**公開**，真實值只填在你本機的腳本管理器裡，勿提交回來。
+
+端點只要實作這個極簡契約（任何後端都行）：
+
+| 方法 | 行為 |
+|------|------|
+| `GET <SYNC_API>` | 回傳之前存的 JSON（沒有就回 `null`） |
+| `PUT <SYNC_API>` | 把 request body（一包 JSON 陣列）原樣存起來 |
+
+兩者都用 `Authorization: Bearer <SYNC_TOKEN>` 驗證。
+
+#### 參考實作（Cloudflare Workers，免費）
+
+`worker.js`：
+
+```js
+export default {
+  async fetch(req, env) {
+    const url = new URL(req.url);
+    if (url.pathname !== '/api/cfg') return new Response('not found', { status: 404 });
+    const tok = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+    if (!env.TOKEN || tok !== env.TOKEN) return new Response('unauthorized', { status: 401 });
+    const k = 'cfg:' + (url.searchParams.get('k') || '').replace(/[^\w.-]/g, '').slice(0, 64);
+    if (req.method === 'GET')  return Response.json(JSON.parse((await env.CFG.get(k)) || 'null'));
+    if (req.method === 'PUT') { await env.CFG.put(k, await req.text()); return Response.json({ ok: true }); }
+    return new Response('method not allowed', { status: 405 });
+  },
+};
+```
+
+`wrangler.toml`：
+
+```toml
+name = "gbf-sync"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+[[kv_namespaces]]
+binding = "CFG"
+id = "下一步建出來的 id"
+```
+
+部署（需 [Wrangler](https://developers.cloudflare.com/workers/wrangler/)）：
+
+```bash
+wrangler kv namespace create CFG   # 把回傳的 id 填進 wrangler.toml
+wrangler secret put TOKEN          # 設一把你自己的 bearer token
+wrangler deploy
+```
+
+完成後把 `SYNC_API` 設為 `https://<你的-worker>.workers.dev/api/cfg?k=gbf-shortcuts`、`SYNC_TOKEN` 設為剛剛那把 token，各裝置填同一組即可同步。
+
+> 標頭的 `@connect *` 允許連到你設定的任何網域；要收緊可改成 `@connect <你的網域>`。
+
 ## 適用網址
 
 - `https://game.granbluefantasy.jp/*`

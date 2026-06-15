@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         碧藍幻想捷徑列（雲端同步）
 // @namespace    https://kvcc.me
-// @version      0.1.0
-// @description  在寶物列上方加一排可自訂的捷徑按鈕（標題＋連結），設定透過 go.kvcc.me 跨裝置同步
+// @version      0.2.0
+// @description  在寶物列上方加一排可自訂的捷徑按鈕（標題＋連結）；預設純本機，可選填自架端點跨裝置同步
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       kv
 // @match        *://game.granbluefantasy.jp/*
@@ -11,20 +11,20 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
 // @grant        GM_getValue
-// @connect      go.kvcc.me
+// @connect      *
 // ==/UserScript==
 (function () {
   "use strict";
   if (window.__kvBar) return; window.__kvBar = true;
 
   /* ─────────────────────────────────────
-   * 設定：跨裝置同步 token（= ~/.config/kvcc-notify-token 的內容，即 go.kvcc.me 的 AGENT_NOTIFY_TOKEN）
-   * ⚠ 本檔在公開 repo，請勿把真實 token 提交上來；只在你本機的腳本管理器裡填。
-   *   留著佔位字串＝不同步，只用本機快取（GM 儲存），功能照常。
+   * 跨裝置同步（選用）。兩個都留空＝只用本機 GM 儲存，捷徑列照常運作、不連任何伺服器。
+   * 想同步：填「你自己的」端點與 token（不綁定任何服務；自架做法見 README）。
+   * ⚠ 本檔在公開 repo，真實值只在你本機的腳本管理器裡填，勿提交回來。
    * ───────────────────────────────────── */
-  const SYNC_TOKEN = "在此填入你的同步 token";
-  const API = "https://go.kvcc.me/api/cfg?k=gbf-shortcuts";
-  const syncable = () => SYNC_TOKEN && SYNC_TOKEN.indexOf("填入") === -1;
+  const SYNC_API   = "";  // 例：https://你的網域/api/cfg?k=gbf-shortcuts
+  const SYNC_TOKEN = "";  // 對應的 bearer token
+  const syncable = () => !!SYNC_API && !!SYNC_TOKEN;
 
   const BAR_H = 26;                       // 捷徑列高度（想更扁改小）
   const KEY = "kv_gbf_shortcuts";
@@ -42,14 +42,14 @@
     GM_setValue(KEY, JSON.stringify(list));
     if (!syncable()) return;
     GM_xmlhttpRequest({
-      method: "PUT", url: API, data: JSON.stringify(list),
+      method: "PUT", url: SYNC_API, data: JSON.stringify(list),
       headers: { Authorization: "Bearer " + SYNC_TOKEN, "Content-Type": "application/json" },
     });
   }
   function pull() {                       // 開場拉雲端，有資料就覆蓋重畫
     if (!syncable()) return;
     GM_xmlhttpRequest({
-      method: "GET", url: API, headers: { Authorization: "Bearer " + SYNC_TOKEN },
+      method: "GET", url: SYNC_API, headers: { Authorization: "Bearer " + SYNC_TOKEN },
       onload: (r) => {
         if (r.status !== 200) return;
         try {
@@ -125,7 +125,7 @@
     return i;
   };
   const tIn = mkInput("標題（短）");
-  const uIn = mkInput("網址：quest、party/index/0/npc/0、或 https://go.kvcc.me/…");
+  const uIn = mkInput("網址：quest、party/index/0/npc/0、或 https://…");
   const mkBtn = (txt, bg) => {
     const b = document.createElement("div"); b.textContent = txt;
     b.style.cssText = `padding:7px 12px;border-radius:5px;cursor:pointer;user-select:none;color:#f2eee2;border:1px solid #5c575e;background:${bg}`;

@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         碧藍幻想 元氣回滿通知（探検隊）
 // @namespace    https://kvcc.me
-// @version      0.1.0
-// @description  探検隊「元氣」回滿時推一則手機通知。讀遊戲內回復倒數→上報到自架排程端點→到點才推（關瀏覽器也收得到）。預設不啟用，需自填端點與 token。
+// @version      0.2.0
+// @description  探検隊「元氣」回滿時推一則手機通知。探検隊頁讀回復倒數(精準)、主頁讀現值估算，→上報自架排程端點→到點才推（關瀏覽器也收得到）。預設不啟用，需自填端點與 token。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       kv
 // @match        *://game.granbluefantasy.jp/*
@@ -30,21 +30,38 @@
   const JUMP_URL     = "https://game.granbluefantasy.jp/#vyrnsampo"; // 點通知跳探検隊
   const KEY          = "gbf-genki"; // 去重鍵：同 key 覆寫，重派只更新時刻
   const STORE        = "kv_genki_fullAt";
+  const MAX_GENKI    = 100;             // 元氣上限固定 100（不隨 rank），免偵測
+  const SEED_RATE    = 585000;          // 每點回復初值 ≈9.75 分（取自 62/100→6:11）；探検隊頁進去就用實測覆蓋
+  const CAL          = "kv_genki_rate"; // 快取探検隊頁實測到的「每點 ms」
   const enabled = () => !!SCHEDULE_API && !!TOKEN;
+  const rateMs = () => { const v = +GM_getValue(CAL, 0); return v > 0 ? v : SEED_RATE; };
 
-  // 讀探検隊頁的元氣計量條：錨在圖檔名（class 是改版會變的 hash，不能靠）。
-  // 回傳 { cur, max, fullAt(ms) } 或 null（不在探検隊頁 / 還沒渲染）。
+  // 讀元氣。兩條路徑，皆錨在穩定特徵（圖檔名 / .prt-vyrnsampo），不靠改版會變的 hash class。
+  // A 探検隊頁：cur + 回復倒數 → 精準 fullAt，並用實測覆蓋「每點 ms」快取。
+  // B 主頁捷徑：只有現值 .prt-vyrnsampo .txt-stamina → 用 上限100 + 速率(實測或初值) 估 fullAt（誤差 ≤1 格 ~10 分）。
+  // 回傳 { cur, max, fullAt(ms), full? } 或 null（沒得讀）。
   function readGenki() {
     const tImg = document.querySelector('img[src*="base_status_time.png"]'); // 回復倒數時鐘
-    const sImg = document.querySelector('img[src*="text_stamina.png"]');     // 元氣標籤
-    if (!tImg || !sImg) return null;
-    const cm = (sImg.parentElement && sImg.parentElement.textContent || "").match(/(\d+)\s*\/\s*(\d+)/);
-    const nums = [...(tImg.parentElement ? tImg.parentElement.querySelectorAll("div") : [])]
-      .map((d) => d.textContent.trim()).filter((x) => /^\d+$/.test(x));
-    if (!cm || nums.length < 2) return null;
-    const cur = +cm[1], max = +cm[2], h = +nums[0], min = +nums[1];
-    if (cur >= max) return { cur, max, fullAt: Date.now() };          // 已滿
-    return { cur, max, fullAt: Date.now() + (h * 3600 + min * 60) * 1000 }; // 時鐘＝離全滿 H:MM
+    const sImg = document.querySelector('img[src*="text_stamina.png"]');     // 元氣標籤(探検隊頁)
+    if (tImg && sImg) {                                                       // ── A 探検隊頁(完整)
+      const cm = (sImg.parentElement && sImg.parentElement.textContent || "").match(/(\d+)\s*\/\s*(\d+)/);
+      const nums = [...(tImg.parentElement ? tImg.parentElement.querySelectorAll("div") : [])]
+        .map((d) => d.textContent.trim()).filter((x) => /^\d+$/.test(x));
+      if (cm && nums.length >= 2) {
+        const cur = +cm[1], max = +cm[2], h = +nums[0], min = +nums[1];
+        if (cur >= max) return { cur, max, fullAt: Date.now(), full: true };
+        const toFull = (h * 3600 + min * 60) * 1000;                         // 時鐘＝離全滿 H:MM
+        if (max > cur) GM_setValue(CAL, String(toFull / (max - cur)));        // 實測每點 ms,覆蓋初值
+        return { cur, max, fullAt: Date.now() + toFull };
+      }
+    }
+    const mp = document.querySelector('.prt-vyrnsampo .txt-stamina');         // ── B 主頁捷徑(只有現值)
+    if (mp && /^\d+$/.test(mp.textContent.trim())) {
+      const cur = +mp.textContent.trim();
+      if (cur >= MAX_GENKI) return { cur, max: MAX_GENKI, fullAt: Date.now(), full: true };
+      return { cur, max: MAX_GENKI, fullAt: Date.now() + (MAX_GENKI - cur) * rateMs() };
+    }
+    return null;
   }
 
   function send(body) {
@@ -59,7 +76,7 @@
     if (!enabled()) return;
     const g = readGenki();
     if (!g) return;
-    if (g.cur >= g.max) {                                  // 已滿：清掉殘留排程，免得晚到
+    if (g.full) {                                          // 已滿：清掉殘留排程，免得晚到
       if (GM_getValue(STORE)) { send({ key: KEY, cancel: true }); GM_setValue(STORE, ""); }
       return;
     }

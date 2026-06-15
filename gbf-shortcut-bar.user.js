@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         碧藍幻想捷徑列（雲端同步）
 // @namespace    https://kvcc.me
-// @version      0.2.0
-// @description  在寶物列上方加一排可自訂的捷徑按鈕（標題＋連結）；預設純本機，可選填自架端點跨裝置同步
+// @version      0.3.0
+// @description  在寶物列上方加一排可自訂的捷徑按鈕（標題＋連結）；預設純本機，可選填自架端點跨裝置同步（上傳改了才推、下載按 ⟳ 手動拉）
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       kv
 // @match        *://game.granbluefantasy.jp/*
@@ -46,17 +46,21 @@
       headers: { Authorization: "Bearer " + SYNC_TOKEN, "Content-Type": "application/json" },
     });
   }
-  function pull() {                       // 開場拉雲端，有資料就覆蓋重畫
-    if (!syncable()) return;
+  function pull(cb) {                     // 手動同步：拉雲端，有資料就覆蓋重畫；cb(成功?)
+    if (!syncable()) { cb && cb(false); return; }
     GM_xmlhttpRequest({
       method: "GET", url: SYNC_API, headers: { Authorization: "Bearer " + SYNC_TOKEN },
       onload: (r) => {
-        if (r.status !== 200) return;
-        try {
-          const d = JSON.parse(r.responseText);
-          if (Array.isArray(d)) { items = d; GM_setValue(KEY, JSON.stringify(d)); render(); }
-        } catch {}
+        let ok = false;
+        if (r.status === 200) {
+          try {
+            const d = JSON.parse(r.responseText);
+            if (Array.isArray(d)) { items = d; GM_setValue(KEY, JSON.stringify(d)); ok = true; }
+          } catch {}
+        }
+        render(); cb && cb(ok);
       },
+      onerror: () => { cb && cb(false); },
     });
   }
 
@@ -95,6 +99,15 @@
       const add = mkChip("＋", 38, { background: "rgba(40,90,70,.55)" });
       add.onclick = () => openEditor(-1);
       bar.appendChild(add);
+      if (syncable()) {                    // 手動同步鈕：點了才拉雲端
+        const sy = mkChip("⟳", 28, { background: "rgba(40,70,110,.55)" });
+        sy.onclick = () => {
+          if (sy.dataset.b) return;
+          sy.dataset.b = "1"; sy.textContent = "…";
+          pull((ok) => { if (!ok) { sy.textContent = "✕"; sy.dataset.b = ""; } });
+        };
+        bar.appendChild(sy);
+      }
     }
     items.forEach((it, i) => {
       const chip = mkChip(it.t, 38, editing ? { borderColor: "#c86445" } : null);
@@ -179,5 +192,5 @@
   }
 
   document.body.append(bar, back, card);
-  render(); reposition(); setInterval(reposition, 600); pull();
+  render(); reposition(); setInterval(reposition, 600);
 })();

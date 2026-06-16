@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>捷徑列 本機預覽 / dev preview</title>
+  <!--
+    開發預覽：用瀏覽器直接打開本檔（file://），就會把同 repo 的 gbf-shortcut-bar.user.js
+    跑在一個「假寶物列 footer」上方，方便改版面時自己先看過（對齊、疊排、顏色…）。
+    ⚠ 純測試資料，不含任何機密：載入的是 repo 版（SYNC_API/SYNC_TOKEN 留空＝不連線），
+       下面 _store 的捷徑也是假的（h:"a/b/c/d"）。改 _store 可試不同情境（加 g 試分類、加 k 試快捷鍵）。
+  -->
+  <style>
+    html, body { margin: 0; height: 100%; background: #2a2320; }
+    /* 假寶物列 footer，貼底；userscript 會抓 .cnt-treasure-footer 貼齊它上緣 */
+    .cnt-treasure-footer {
+      position: fixed; left: 0; bottom: 0; width: 600px; height: 64px;
+      background: linear-gradient(#3a5a7a, #24405e); color: #cde;
+      display: flex; align-items: center; justify-content: center; font: 14px sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <script>
+    // GM_* 樁：代表性假資料（含一顆有快捷鍵 q 的「活動 Hell」）。要試分類就給某些項目加 g:"群組"。
+    var _store = {
+      kv_gbf_shortcuts: JSON.stringify({
+        show: true,
+        items: [
+          { t: "水滴", h: "a" },
+          { t: "救援", h: "b" },
+          { t: "多人", h: "c" },
+          { t: "活動 Hell", h: "d", k: "q" }
+        ]
+      }),
+      kv_gbf_cat: ""
+    };
+    window.GM_getValue = function (k, d) { return (k in _store) ? _store[k] : d; };
+    window.GM_setValue = function (k, v) { _store[k] = v; };
+    window.GM_xmlhttpRequest = function () {}; // 預覽不連線
+  </script>
+  <div class="cnt-treasure-footer">（假寶物列 footer）</div>
+  <script src="../gbf-shortcut-bar.user.js"></script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         碧藍幻想捷徑列（雲端同步）
 // @namespace    https://kvcc.me
-// @version      0.6.1
+// @version      0.6.2
 // @description  在寶物列上方加一排可自訂的捷徑按鈕（標題＋連結）；兩排(上控制透明、下捷徑黑底)＋分類輪替鈕、單鍵快捷鍵（綁 Q 就按 Q）、後台可開關顯示。預設純本機，可選填自架端點跨裝置同步（改了才推、按 ⟳ 手動拉）。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       kv
@@ -101,7 +101,7 @@
   const mkBand = (dark) => {   // 一排容器；dark=下排黑底 band（滿寬、貼 footer），否則透明
     const d = document.createElement("div");
     let s = "display:flex;flex-wrap:wrap;gap:3px;align-items:center;box-sizing:border-box;padding:0 4px"; // 左右 4px：上下排左緣對齊
-    if (dark) s += ";width:100%;padding:2px 4px;background:rgba(21,15,15,.92);border-top:1px solid #43382e";
+    if (dark) s += ";width:100%;padding:2px 4px;background:rgba(21,15,15,.92)";
     d.style.cssText = s;
     return d;
   };

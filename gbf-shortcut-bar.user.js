@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         碧藍幻想捷徑列（雲端同步）
 // @namespace    https://kvcc.me
-// @version      0.4.3
-// @description  在寶物列上方加一排可自訂的捷徑按鈕（標題＋連結）；支援分類（每群一列、往上疊不橫捲）、單鍵快捷鍵（綁 Q 就按 Q）、後台可開關顯示。預設純本機，可選填自架端點跨裝置同步（改了才推、按 ⟳ 手動拉）。
+// @version      0.5.0
+// @description  在寶物列上方加一排可自訂的捷徑按鈕（標題＋連結）；支援分類（單排＋輪替鈕切換，按一下換下一類）、單鍵快捷鍵（綁 Q 就按 Q）、後台可開關顯示。預設純本機，可選填自架端點跨裝置同步（改了才推、按 ⟳ 手動拉）。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       kv
 // @match        *://game.granbluefantasy.jp/*
@@ -27,6 +27,7 @@
   const syncable = () => !!SYNC_API && !!SYNC_TOKEN;
 
   const KEY = "kv_gbf_shortcuts";
+  const CAT = "kv_gbf_cat";               // 目前選的分類（本機 UI 狀態，不同步）
   const DEFAULTS = [
     { t: "マイ", h: "mypage" }, { t: "クエ", h: "quest" },
     { t: "店", h: "shop" }, { t: "ガチャ", h: "gacha" },
@@ -133,37 +134,36 @@
         ctl.appendChild(sy);
       }
     }
+    // 分類：取出現過的群組（含「無群組」）。>1 個分類才出現輪替鈕，且只顯示當前分類（維持單排）。
+    const cats = [], seen = {};
+    cfg.items.forEach((it) => { const g = (it.g || "").trim(); if (!(g in seen)) { seen[g] = 1; cats.push(g); } });
+    let active = "";
+    if (cats.length > 1) {
+      const saved = GM_getValue(CAT, "");
+      active = cats.indexOf(saved) >= 0 ? saved : cats[0];
+      const idx = cats.indexOf(active);
+      const cc = mkChip("▸ " + (active || "其他"), 34, { background: "rgba(95,72,42,.7)", borderColor: "#caa15a", padding: "0 7px" });
+      cc.title = "分類 " + (idx + 1) + "/" + cats.length + "：按一下換下一個";
+      cc.onclick = () => { GM_setValue(CAT, cats[(idx + 1) % cats.length]); render(); };
+      ctl.appendChild(cc);
+    }
     bar.appendChild(ctl);
 
-    const groups = [], gi = {};                            // 依群組分列（保留出現順序）
+    const row = mkRow();                                   // 只放當前分類的捷徑（單排；該分類太多才往上折）
     cfg.items.forEach((it, i) => {
-      const g = (it.g || "").trim();
-      if (!(g in gi)) { gi[g] = groups.length; groups.push({ g, list: [] }); }
-      groups[gi[g]].list.push(i);
-    });
-    groups.forEach(({ g, list }) => {
-      const row = mkRow();
-      if (g) {                                             // 群名標籤（非按鈕）
-        const lab = document.createElement("div");
-        lab.textContent = g;
-        lab.style.cssText = "flex:0 0 auto;font:9px/1 sans-serif;color:#a9967e;padding:0 2px;align-self:center;user-select:none;letter-spacing:.5px";
-        row.appendChild(lab);
+      if (cats.length > 1 && (it.g || "").trim() !== active) return;
+      const chip = mkChip(it.t, 38, editing ? { borderColor: "#c86445" } : null);
+      chip.title = it.h + (it.k ? "（按 " + it.k + "）" : "");
+      if (it.k) {                                          // 右上角小快捷鍵提示
+        const b = document.createElement("span");
+        b.textContent = String(it.k).toUpperCase();
+        b.style.cssText = "position:absolute;top:-4px;right:-3px;font:7px/1 sans-serif;color:#1a1410;background:#c9a24a;border-radius:3px;padding:1px 2px;pointer-events:none";
+        chip.appendChild(b);
       }
-      list.forEach((i) => {
-        const it = cfg.items[i];
-        const chip = mkChip(it.t, 38, editing ? { borderColor: "#c86445" } : null);
-        chip.title = it.h + (it.k ? "（按 " + it.k + "）" : "");
-        if (it.k) {                                        // 右上角小快捷鍵提示
-          const b = document.createElement("span");
-          b.textContent = String(it.k).toUpperCase();
-          b.style.cssText = "position:absolute;top:-4px;right:-3px;font:7px/1 sans-serif;color:#1a1410;background:#c9a24a;border-radius:3px;padding:1px 2px;pointer-events:none";
-          chip.appendChild(b);
-        }
-        chip.onclick = () => (editing ? openEditor(i) : go(it.h));
-        row.appendChild(chip);
-      });
-      bar.appendChild(row);
+      chip.onclick = () => (editing ? openEditor(i) : go(it.h));
+      row.appendChild(chip);
     });
+    bar.appendChild(row);
     reposition();
   }
 
@@ -219,6 +219,7 @@
     if (!t || !h) { (t ? uIn : tIn).focus(); return; }
     const o = { t, h }; if (g) o.g = g; if (k) o.k = k;
     if (editIndex >= 0) cfg.items[editIndex] = o; else cfg.items.push(o);
+    GM_setValue(CAT, g);                   // 切到剛編輯/新增的分類，存完看得到
     save(); render(); closeEditor();
   };
   delBtn.onclick = () => {

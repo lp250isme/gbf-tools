@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         碧藍幻想捷徑列（雲端同步）
 // @namespace    https://kvcc.me
-// @version      0.4.1
+// @version      0.4.2
 // @description  在寶物列上方加一排可自訂的捷徑按鈕（標題＋連結）；支援分類（每群一列、往上疊不橫捲）、單鍵快捷鍵（綁 Q 就按 Q）、後台可開關顯示。預設純本機，可選填自架端點跨裝置同步（改了才推、按 ⟳ 手動拉）。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       kv
@@ -77,6 +77,7 @@
   //    不吃任何修飾鍵組合（Ctrl/Alt/Meta），以免攔到瀏覽器原生快捷鍵。
   document.addEventListener("keydown", (e) => {
     if (e.ctrlKey || e.altKey || e.metaKey) return;
+    if (e.isComposing || e.keyCode === 229) return;      // 輸入法組字中（中/日文…）一律放行，別攔
     const ae = document.activeElement;
     if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA" || ae.tagName === "SELECT" || ae.isContentEditable)) return;
     const k = (e.key || "").toLowerCase();

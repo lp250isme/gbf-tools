@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         碧藍幻想捷徑列（雲端同步）
 // @namespace    https://kvcc.me
-// @version      0.8.4
-// @description  可自訂捷徑按鈕（標題＋連結）的浮動工具列：玻璃質感單列藥丸，抓握把拖到畫面任一處、放開記住位置(本機)；分類輪替鈕、單鍵快捷鍵（綁 Q 就按 Q）、⚙ 可開關顯示。預設純本機，可選填自架端點跨裝置同步（改了才推、按 ⟳ 手動拉）。
+// @version      0.9.2
+// @description  可自訂捷徑按鈕（標題＋連結）的浮動工具列：GBF 真·原生按鈕底圖（內嵌官方 sprite 切圖、深藍）單列，抓握把拖到畫面任一處、放開記住位置(本機)；分類輪替鈕、單鍵快捷鍵（綁 Q 就按 Q）、⚙ 可開關顯示。預設純本機，可選填自架端點跨裝置同步（改了才推、按 ⟳ 手動拉）。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       kv
 // @match        *://game.granbluefantasy.jp/*
@@ -91,7 +91,7 @@
     if (it) { e.preventDefault(); e.stopPropagation(); go(it.h); }
   }, true);
 
-  /* ── 捷徑列：單列玻璃藥丸。左＝握把，中＝控制(⚙/分類)，右＝捷徑；霜玻璃材質＋柔描邊＋浮起陰影 ── */
+  /* ── 捷徑列：單列工具條。左＝握把，中＝控制(⚙/分類)，右＝捷徑；GBF 真·原生按鈕底圖(內嵌官方切圖,深藍) ── */
   const st = document.createElement("style");
   st.textContent =
     ".kvc-chip{transition:filter .14s ease,background-color .14s ease,transform .12s ease}" +
@@ -99,7 +99,7 @@
     ".kvc-chip:active{transform:scale(.94)}" +
     ".kvc-gear:active{transform:none}" +
     ".kvc-bar{transition:box-shadow .18s ease}" +
-    ".kvc-bar.kvc-drag{box-shadow:0 12px 30px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.16)}" +
+    ".kvc-bar.kvc-drag{box-shadow:0 12px 30px rgba(0,0,0,.6),inset 0 1px 0 rgba(120,150,175,.4)}" +
     "@media(prefers-reduced-motion:reduce){.kvc-chip{transition:none}.kvc-chip:active{transform:none}.kvc-bar{transition:none}}";
   (document.head || document.documentElement).appendChild(st);
   const bar = document.createElement("div");
@@ -107,11 +107,10 @@
   Object.assign(bar.style, {
     position: "fixed", zIndex: 2147483646, boxSizing: "border-box",
     display: "flex", flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: "3px",
-    padding: "2px 5px",
-    background: "rgba(18,14,14,.5)",
-    backdropFilter: "blur(12px) saturate(1.25)", WebkitBackdropFilter: "blur(12px) saturate(1.25)",
-    border: "1px solid rgba(255,255,255,.14)", borderRadius: "7px",
-    boxShadow: "0 5px 16px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.12)",
+    padding: "3px 5px",
+    background: "linear-gradient(to bottom, rgba(38,50,63,.96), rgba(18,25,33,.96))",
+    border: "1px solid #0e151d", borderRadius: "6px",
+    boxShadow: "0 4px 14px rgba(0,0,0,.55), inset 0 1px 0 rgba(120,150,175,.35)",
   });
   bar.style.display = "none"; // 先藏，reposition 決定要不要顯示
   const mkBand = () => {        // 群組容器（透明，玻璃材質在 bar 上）。min-width:0 讓捷徑爆量時能換行不撐破藥丸
@@ -125,9 +124,11 @@
       position: "relative", flex: "0 0 auto", boxSizing: "border-box",
       minWidth: (w || 34) + "px", height: "18px",
       display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center",
-      font: "9px/1 sans-serif", color: "#f2eee2",
-      background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.12)", borderRadius: "5px",
-      cursor: "pointer", userSelect: "none", padding: "0 4px",
+      font: "9px/1 sans-serif", color: "#d7ebf7",
+      background: "url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIIAAAAwCAMAAADq31KxAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAACuUExURQAAACdWb769vL3HyrT4/VFvdDRGTDNkey1WaUxWWY2fpLLz9zBbb1CMpYPJ2YTZ75Tb+mektW2xwlubtXbA0ixQY2uQlB9LY1aGnSZUbDpwiUyBlgYGBTZHTxhIYxtJYztQVSQ6SCM7SyRNXyVBTyEyPB4qMgwODR4cGBlHYSIgISIqLiAeGiAgHhtKZUdpdkhxgEl6jC5uiixlfiVcdCZVaCNHVyE6RyAyPf///2ye7kkAAAAvdFJOUwABN0YYkcT06c1KD/j+/v78/v7+/vmYJvoD9/4+aA5FfqHC/vvA/mI1FFCvmYkHKebjBgAAAAFiS0dEOdcAlUAAAAAHdElNRQfqBhAMNCO0BUuaAAAAJXRFWHRkYXRlOmNyZWF0ZQAyMDI2LTA2LTE2VDEyOjI1OjIxKzAwOjAwkMK/twAAACV0RVh0ZGF0ZTptb2RpZnkAMjAyNi0wNi0xNlQxMjoyNToyMSswMDowMOGfBwsAAAAodEVYdGRhdGU6dGltZXN0YW1wADIwMjYtMDYtMTZUMTI6NTI6MzUrMDA6MDBFiAyjAAAB9UlEQVRYw82W7VbiMBCGI7tI1bQKJetKXV1NwIrrsm3Spvd/ZTtJ+in8bDO8M+fNzJRDnhNyAEIaXcy+edXsOxlqNr9cHP751CG4ur7pAG7mNIxu77zqNloeguv2CIIsuotWcehT8Wq9DtkPR3Af/IzWYe5dWbwK6dwQPFxm6+UGRhvPkedJnNBHQPh1WC79H0F9EIkMCHkKkngj81wC1sIchQd3pYTIckrIM00SWSv36QvruSTkN802ElOEvMivBHRiH2gBCK+wKkUlbVPaxZUTOK03U24rhwAE6rToBK4k7bxGcE9PR2fj1YVqzIwcQoEoZRAoKgJV6AgKH6GgNQJHi8KeAqBwkDXf3iLwWv4p+FcEBNUIbV96d+6uIyCUVty7ly0Czv7GOe8hIMkhMFMKCGti8rofHYKwg3o+dT2IBkGgCe6jQeCICKJsELTQSFkjQNmMdO/xdHXnAwQknQtCAVehaqNXDpqR541pwSyCriqbuluOmpHnrXUIWDoDhOpMELYWYddlE/1unPpEWoQXgwAvaLOJfjdOfZwO4Y1xffLpbvQ8et9dpUtASBkTpkNRpTkjD++v7hhQCOBzMAh7xkocBiDg7AMQ0j9IDJZA7MnFU7rfAoPw/uUAP1FwDT9TQv7eP759cMa8/3fisOn2c5/+ByVhGRzVoc9cAAAAAElFTkSuQmCC') 0 0 / 100% 100% no-repeat",
+      border: "none", borderRadius: "5px",
+      textShadow: "0 1px 1px rgba(0,0,0,.85)", boxShadow: "0 1px 2px rgba(0,0,0,.4)",
+      cursor: "pointer", userSelect: "none", padding: "0 6px",
     }, extra || {});
     c.addEventListener("pointerdown", () => (c.style.filter = "brightness(1.4)")); // 按壓回饋，不位移版面
     const reset = () => (c.style.filter = ""); c.addEventListener("pointerup", reset); c.addEventListener("pointerleave", reset);
@@ -136,13 +137,13 @@
   function render() {
     bar.innerHTML = "";
     const top = mkBand();                                  // 左側控制群組（拖曳握把＋⚙…）
-    const grip = mkChip("", 8, { cursor: "grab", touchAction: "none", background: "transparent", border: "1px solid transparent", padding: "0 1px" });
-    grip.innerHTML = '<svg width="6" height="12" viewBox="0 0 6 12" fill="rgba(242,238,226,.5)" aria-hidden="true"><circle cx="1.5" cy="2" r="1"/><circle cx="4.5" cy="2" r="1"/><circle cx="1.5" cy="6" r="1"/><circle cx="4.5" cy="6" r="1"/><circle cx="1.5" cy="10" r="1"/><circle cx="4.5" cy="10" r="1"/></svg>';
+    const grip = mkChip("", 8, { cursor: "grab", touchAction: "none", background: "transparent", border: "1px solid transparent", boxShadow: "none", textShadow: "none", padding: "0 1px" });
+    grip.innerHTML = '<svg width="6" height="12" viewBox="0 0 6 12" fill="rgba(190,212,232,.6)" aria-hidden="true"><circle cx="1.5" cy="2" r="1"/><circle cx="4.5" cy="2" r="1"/><circle cx="1.5" cy="6" r="1"/><circle cx="4.5" cy="6" r="1"/><circle cx="1.5" cy="10" r="1"/><circle cx="4.5" cy="10" r="1"/></svg>';
     grip.title = "拖曳移動捷徑列";
     grip.addEventListener("pointerdown", startDrag);       // 只認握把拖曳，不跟捷徑/輸入框搶事件
     top.appendChild(grip);                                 // 握把永遠在（連收合成 ⚙ 時也能拖）
-    const gear = mkChip(editing ? "✓" : "", 18, { background: editing ? "rgba(200,100,69,.65)" : "rgba(255,255,255,.10)", padding: "0", width: "18px" });
-    if (!editing) gear.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="#f2eee2" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>';
+    const gear = mkChip(editing ? "✓" : "", 18, editing ? { background: "linear-gradient(to bottom,#e8cd7a,#bd9636)", border: "1px solid #6e5113", color: "#241a06", textShadow: "0 1px 0 rgba(255,245,210,.5)", boxShadow: "inset 0 1px 0 rgba(255,245,210,.6),inset 0 -1px 1px rgba(0,0,0,.35)", padding: "0", width: "18px" } : { padding: "0", width: "18px" });
+    if (!editing) gear.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="#d7ebf7" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>';
     gear.classList.add("kvc-gear");                        // 換字鈕：CSS 排除 scale，避免 iOS 換字疊影
     gear.onclick = () => { editing = !editing; render(); };
     top.appendChild(gear);
@@ -168,7 +169,7 @@
       const saved = GM_getValue(CAT, "");
       active = cats.indexOf(saved) >= 0 ? saved : cats[0];
       const idx = cats.indexOf(active);
-      const cc = mkChip((active || "其他"), 34, { background: "rgba(95,72,42,.85)", borderColor: "#caa15a", color: "#f3e6c4", padding: "0 6px" });
+      const cc = mkChip((active || "其他"), 34, { background: "rgba(95,72,42,.85)", border: "1px solid #caa15a", color: "#f3e6c4", padding: "0 6px" });
       cc.title = "分類 " + (idx + 1) + "/" + cats.length + "：按一下換下一個";
       cc.onclick = () => { GM_setValue(CAT, cats[(idx + 1) % cats.length]); render(); };
       top.appendChild(cc);
@@ -176,7 +177,7 @@
     bar.appendChild(top);
     if (!editing) {                                        // 非編輯時：控制群組與捷徑群組之間一道細分隔線
       const sep = document.createElement("div");
-      sep.style.cssText = "flex:0 0 auto;width:1px;height:12px;background:rgba(255,255,255,.16)";
+      sep.style.cssText = "flex:0 0 auto;width:1px;height:12px;background:rgba(150,180,205,.3)";
       bar.appendChild(sep);
     }
     const bottom = mkBand();                               // 右側捷徑群組

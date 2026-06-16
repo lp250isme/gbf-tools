@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         碧藍幻想捷徑列（雲端同步）
 // @namespace    https://kvcc.me
-// @version      0.7.0
-// @description  可自訂捷徑按鈕（標題＋連結）的浮動工具列：抓握把(⠿)拖到畫面任一處、放開記住位置(本機)；兩排(上控制透明、下捷徑黑底)＋分類輪替鈕、單鍵快捷鍵（綁 Q 就按 Q）、⚙ 可開關顯示。預設純本機，可選填自架端點跨裝置同步（改了才推、按 ⟳ 手動拉）。
+// @version      0.8.3
+// @description  可自訂捷徑按鈕（標題＋連結）的浮動工具列：玻璃質感單列藥丸，抓握把拖到畫面任一處、放開記住位置(本機)；分類輪替鈕、單鍵快捷鍵（綁 Q 就按 Q）、⚙ 可開關顯示。預設純本機，可選填自架端點跨裝置同步（改了才推、按 ⟳ 手動拉）。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       kv
 // @match        *://game.granbluefantasy.jp/*
@@ -91,28 +91,42 @@
     if (it) { e.preventDefault(); e.stopPropagation(); go(it.h); }
   }, true);
 
-  /* ── 捷徑列：兩排。上＝控制(⚙/分類,透明無黑底)，下＝捷徑(黑底 band,貼 footer) ── */
+  /* ── 捷徑列：單列玻璃藥丸。左＝握把，中＝控制(⚙/分類)，右＝捷徑；霜玻璃材質＋柔描邊＋浮起陰影 ── */
+  const st = document.createElement("style");
+  st.textContent =
+    ".kvc-chip{transition:filter .14s ease,background-color .14s ease,transform .12s ease}" +
+    ".kvc-chip:hover{filter:brightness(1.18)}" +
+    ".kvc-chip:active{transform:scale(.94)}" +
+    ".kvc-gear:active{transform:none}" +
+    ".kvc-bar{transition:box-shadow .18s ease}" +
+    ".kvc-bar.kvc-drag{box-shadow:0 12px 30px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.16)}" +
+    "@media(prefers-reduced-motion:reduce){.kvc-chip{transition:none}.kvc-chip:active{transform:none}.kvc-bar{transition:none}}";
+  (document.head || document.documentElement).appendChild(st);
   const bar = document.createElement("div");
+  bar.className = "kvc-bar";
   Object.assign(bar.style, {
     position: "fixed", zIndex: 2147483646, boxSizing: "border-box",
-    display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "2px",
+    display: "flex", flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: "3px",
+    padding: "2px 5px",
+    background: "rgba(18,14,14,.5)",
+    backdropFilter: "blur(12px) saturate(1.25)", WebkitBackdropFilter: "blur(12px) saturate(1.25)",
+    border: "1px solid rgba(255,255,255,.14)", borderRadius: "7px",
+    boxShadow: "0 5px 16px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.12)",
   });
   bar.style.display = "none"; // 先藏，reposition 決定要不要顯示
-  const mkBand = (dark) => {   // 一排容器；dark=下排黑底 band，否則透明。寬度吃內容(像藥丸)，超過畫面寬才靠 flex-wrap 換行
+  const mkBand = () => {        // 群組容器（透明，玻璃材質在 bar 上）。min-width:0 讓捷徑爆量時能換行不撐破藥丸
     const d = document.createElement("div");
-    let s = "display:flex;flex-wrap:wrap;gap:3px;align-items:center;box-sizing:border-box;padding:0 4px"; // 左右 4px：上下排左緣對齊
-    if (dark) s += ";padding:2px 4px;background:rgba(21,15,15,.92)";
-    d.style.cssText = s;
+    d.style.cssText = "display:flex;flex-wrap:wrap;gap:3px;align-items:center;box-sizing:border-box;min-width:0";
     return d;
   };
   const mkChip = (label, w, extra) => {
-    const c = document.createElement("div"); c.textContent = label;
+    const c = document.createElement("div"); c.className = "kvc-chip"; c.textContent = label;
     Object.assign(c.style, {
       position: "relative", flex: "0 0 auto", boxSizing: "border-box",
-      minWidth: (w || 38) + "px", height: "20px",
+      minWidth: (w || 34) + "px", height: "18px",
       display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center",
-      font: "10px/1 sans-serif", color: "#f2eee2",
-      background: "rgba(0,0,0,.5)", border: "1px solid #5c575e", borderRadius: "4px",
+      font: "9px/1 sans-serif", color: "#f2eee2",
+      background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.12)", borderRadius: "5px",
       cursor: "pointer", userSelect: "none", padding: "0 4px",
     }, extra || {});
     c.addEventListener("pointerdown", () => (c.style.filter = "brightness(1.4)")); // 按壓回饋，不位移版面
@@ -121,12 +135,14 @@
   };
   function render() {
     bar.innerHTML = "";
-    const top = mkBand(false);                             // 第一排：控制（拖曳握把＋⚙…，透明無黑底）
-    const grip = mkChip("⠿", 22, { cursor: "grab", touchAction: "none", letterSpacing: "-1px", background: "rgba(0,0,0,.55)" });
+    const top = mkBand();                                  // 左側控制群組（拖曳握把＋⚙…）
+    const grip = mkChip("", 14, { cursor: "grab", touchAction: "none", background: "transparent", border: "1px solid transparent", padding: "0 2px" });
+    grip.innerHTML = '<svg width="8" height="12" viewBox="0 0 8 12" fill="rgba(242,238,226,.5)" aria-hidden="true"><circle cx="2" cy="2" r="1.1"/><circle cx="6" cy="2" r="1.1"/><circle cx="2" cy="6" r="1.1"/><circle cx="6" cy="6" r="1.1"/><circle cx="2" cy="10" r="1.1"/><circle cx="6" cy="10" r="1.1"/></svg>';
     grip.title = "拖曳移動捷徑列";
     grip.addEventListener("pointerdown", startDrag);       // 只認握把拖曳，不跟捷徑/輸入框搶事件
     top.appendChild(grip);                                 // 握把永遠在（連收合成 ⚙ 時也能拖）
-    const gear = mkChip(editing ? "✓" : "⚙", 22, { background: editing ? "rgba(200,100,69,.6)" : "rgba(0,0,0,.55)" });
+    const gear = mkChip(editing ? "✓" : "⚙", 20, { background: editing ? "rgba(200,100,69,.65)" : "rgba(255,255,255,.10)" });
+    gear.classList.add("kvc-gear");                        // 換字鈕：CSS 排除 scale，避免 iOS 換字疊影
     gear.onclick = () => { editing = !editing; render(); };
     top.appendChild(gear);
     if (!cfg.show && !editing) { bar.appendChild(top); reposition(); return; } // 隱藏：只留握把＋⚙
@@ -157,8 +173,12 @@
       top.appendChild(cc);
     }
     bar.appendChild(top);
-
-    const bottom = mkBand(true);                           // 第二排：捷徑（黑底 band、貼 footer）
+    if (!editing) {                                        // 非編輯時：控制群組與捷徑群組之間一道細分隔線
+      const sep = document.createElement("div");
+      sep.style.cssText = "flex:0 0 auto;width:1px;height:12px;background:rgba(255,255,255,.16)";
+      bar.appendChild(sep);
+    }
+    const bottom = mkBand();                               // 右側捷徑群組
     cfg.items.forEach((it, i) => {
       if (cats.length > 1 && (it.g || "").trim() !== active) return;
       const chip = mkChip(it.t, 38, editing ? { borderColor: "#c86445" } : null);
@@ -166,7 +186,7 @@
       if (it.k) {                                          // 右上角小快捷鍵提示
         const b = document.createElement("span");
         b.textContent = String(it.k).toUpperCase();
-        b.style.cssText = "position:absolute;top:-4px;right:-3px;font:7px/1 sans-serif;color:#1a1410;background:#c9a24a;border-radius:3px;padding:1px 2px;pointer-events:none";
+        b.style.cssText = "position:absolute;top:-4px;right:-3px;font:7px/1.3 sans-serif;font-weight:600;color:#1a1410;background:rgba(201,162,74,.95);border-radius:3px;padding:0 2px;pointer-events:none;box-shadow:0 1px 2px rgba(0,0,0,.45)";
         chip.appendChild(b);
       }
       chip.onclick = () => (editing ? openEditor(i) : go(it.h));
@@ -265,10 +285,10 @@
     e.preventDefault();
     const r = bar.getBoundingClientRect();
     const offX = e.clientX - r.left, offY = e.clientY - r.top;
-    dragging = true;
+    dragging = true; bar.classList.add("kvc-drag");        // 拖曳中陰影抬高，回饋手感
     const move = (ev) => { const p = clampPos(ev.clientX - offX, ev.clientY - offY); bar.style.left = p.x + "px"; bar.style.top = p.y + "px"; };
     const up = () => {
-      dragging = false;
+      dragging = false; bar.classList.remove("kvc-drag");
       document.removeEventListener("pointermove", move, true);
       document.removeEventListener("pointerup", up, true);
       pos = clampPos(parseFloat(bar.style.left) || MARGIN, parseFloat(bar.style.top) || MARGIN);

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         碧藍幻想捷徑列（雲端同步）
 // @namespace    https://kvcc.me
-// @version      0.4.2
+// @version      0.4.3
 // @description  在寶物列上方加一排可自訂的捷徑按鈕（標題＋連結）；支援分類（每群一列、往上疊不橫捲）、單鍵快捷鍵（綁 Q 就按 Q）、後台可開關顯示。預設純本機，可選填自架端點跨裝置同步（改了才推、按 ⟳ 手動拉）。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       kv
@@ -73,16 +73,20 @@
     else location.hash = h.replace(/^#?\/?/, "");
   }
 
-  // ── 快捷鍵：直接按綁定的單鍵（綁 Q 就按 Q）。唯一例外：游標在輸入框/文字區時不觸發（否則沒法打字）。
-  //    不吃任何修飾鍵組合（Ctrl/Alt/Meta），以免攔到瀏覽器原生快捷鍵。
+  // ── 快捷鍵：用「實體鍵位」e.code 比對（綁 Q ＝實體 Q 鍵）。
+  //    e.key 是「打出來的字元」會被輸入法/鍵盤布局改掉（注音下 Q→ㄆ），所以改抓 e.code（KeyQ/Digit1，永遠不變）。
+  //    唯一例外：游標在輸入框/文字區時不觸發（讓你正常打字）；也不吃 Ctrl/Alt/Meta 組合鍵。
+  function keyHit(e, k) {
+    k = String(k); const code = e.code || "";
+    if (/^[a-z]$/i.test(k)) return code === "Key" + k.toUpperCase() || (e.key || "").toLowerCase() === k.toLowerCase();
+    if (/^[0-9]$/.test(k)) return code === "Digit" + k || code === "Numpad" + k || e.key === k;
+    return (e.key || "").toLowerCase() === k.toLowerCase(); // 非英數鍵：退回字元比對
+  }
   document.addEventListener("keydown", (e) => {
     if (e.ctrlKey || e.altKey || e.metaKey) return;
-    if (e.isComposing || e.keyCode === 229) return;      // 輸入法組字中（中/日文…）一律放行，別攔
     const ae = document.activeElement;
     if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA" || ae.tagName === "SELECT" || ae.isContentEditable)) return;
-    const k = (e.key || "").toLowerCase();
-    if (k.length !== 1) return;                          // 只接單字元鍵（略過 Enter/方向鍵等）
-    const it = cfg.items.find((x) => (x.k || "").toLowerCase() === k);
+    const it = cfg.items.find((x) => x.k && keyHit(e, x.k));
     if (it) { e.preventDefault(); e.stopPropagation(); go(it.h); }
   }, true);
 

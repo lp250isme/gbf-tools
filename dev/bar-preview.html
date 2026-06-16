@@ -5,13 +5,15 @@
   <title>捷徑列 本機預覽 / dev preview</title>
   <!--
     開發預覽：用瀏覽器直接打開本檔（file://），就會把同 repo 的 gbf-shortcut-bar.user.js
-    跑在一個「假寶物列 footer」上方，方便改版面時自己先看過（對齊、疊排、顏色…）。
+    跑起來，方便改版面時自己先看過（對齊、疊排、顏色、拖曳…）。
+    工具列現在是「自由浮動」：抓左上角握把 ⠿ 拖到任一處、放開記住位置（夾在畫面內），
+    不再貼齊下面那條假 footer——假 footer 只當「遊戲底部 UI」的視覺參照，把藥丸拖去別撞它就對了。
     ⚠ 純測試資料，不含任何機密：載入的是 repo 版（SYNC_API/SYNC_TOKEN 留空＝不連線），
        下面 _store 的捷徑也是假的（h:"a/b/c/d"）。改 _store 可試不同情境（加 g 試分類、加 k 試快捷鍵）。
   -->
   <style>
     html, body { margin: 0; height: 100%; background: #2a2320; }
-    /* 假寶物列 footer，貼底；userscript 會抓 .cnt-treasure-footer 貼齊它上緣 */
+    /* 假寶物列 footer，貼底；只當「遊戲底部 UI」視覺參照（工具列已改浮動，不再錨定它） */
     .cnt-treasure-footer {
       position: fixed; left: 0; bottom: 0; width: 600px; height: 64px;
       background: linear-gradient(#3a5a7a, #24405e); color: #cde;

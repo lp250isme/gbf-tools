@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         碧藍幻想捷徑列（雲端同步）
 // @namespace    https://kvcc.me
-// @version      0.6.2
-// @description  在寶物列上方加一排可自訂的捷徑按鈕（標題＋連結）；兩排(上控制透明、下捷徑黑底)＋分類輪替鈕、單鍵快捷鍵（綁 Q 就按 Q）、後台可開關顯示。預設純本機，可選填自架端點跨裝置同步（改了才推、按 ⟳ 手動拉）。
+// @version      0.7.0
+// @description  可自訂捷徑按鈕（標題＋連結）的浮動工具列：抓握把(⠿)拖到畫面任一處、放開記住位置(本機)；兩排(上控制透明、下捷徑黑底)＋分類輪替鈕、單鍵快捷鍵（綁 Q 就按 Q）、⚙ 可開關顯示。預設純本機，可選填自架端點跨裝置同步（改了才推、按 ⟳ 手動拉）。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       kv
 // @match        *://game.granbluefantasy.jp/*
@@ -98,10 +98,10 @@
     display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "2px",
   });
   bar.style.display = "none"; // 先藏，reposition 決定要不要顯示
-  const mkBand = (dark) => {   // 一排容器；dark=下排黑底 band（滿寬、貼 footer），否則透明
+  const mkBand = (dark) => {   // 一排容器；dark=下排黑底 band，否則透明。寬度吃內容(像藥丸)，超過畫面寬才靠 flex-wrap 換行
     const d = document.createElement("div");
     let s = "display:flex;flex-wrap:wrap;gap:3px;align-items:center;box-sizing:border-box;padding:0 4px"; // 左右 4px：上下排左緣對齊
-    if (dark) s += ";width:100%;padding:2px 4px;background:rgba(21,15,15,.92)";
+    if (dark) s += ";padding:2px 4px;background:rgba(21,15,15,.92)";
     d.style.cssText = s;
     return d;
   };
@@ -121,11 +121,15 @@
   };
   function render() {
     bar.innerHTML = "";
-    const top = mkBand(false);                             // 第一排：控制（透明、無黑底）
+    const top = mkBand(false);                             // 第一排：控制（拖曳握把＋⚙…，透明無黑底）
+    const grip = mkChip("⠿", 22, { cursor: "grab", touchAction: "none", letterSpacing: "-1px", background: "rgba(0,0,0,.55)" });
+    grip.title = "拖曳移動捷徑列";
+    grip.addEventListener("pointerdown", startDrag);       // 只認握把拖曳，不跟捷徑/輸入框搶事件
+    top.appendChild(grip);                                 // 握把永遠在（連收合成 ⚙ 時也能拖）
     const gear = mkChip(editing ? "✓" : "⚙", 22, { background: editing ? "rgba(200,100,69,.6)" : "rgba(0,0,0,.55)" });
     gear.onclick = () => { editing = !editing; render(); };
     top.appendChild(gear);
-    if (!cfg.show && !editing) { bar.appendChild(top); reposition(); return; } // 隱藏：只留 ⚙
+    if (!cfg.show && !editing) { bar.appendChild(top); reposition(); return; } // 隱藏：只留握把＋⚙
     if (editing) {
       const visBtn = mkChip(cfg.show ? "隱藏" : "顯示", 34, { background: "rgba(70,60,90,.55)" });
       visBtn.onclick = () => { cfg.show = !cfg.show; save(); render(); };
@@ -232,23 +236,50 @@
     closeEditor();
   };
 
-  /* ── 位置：貼齊 footer（同寬、緊貼上緣、往上長；高度動態，不靠 innerHeight） ── */
-  const visEl = (el) => {
-    if (!el) return false;
-    const cs = getComputedStyle(el);
-    return cs.display !== "none" && cs.visibility !== "hidden" && el.getBoundingClientRect().height > 0;
-  };
-  function reposition() {
-    const tf = document.querySelector(".cnt-treasure-footer");
-    if (!visEl(tf)) { bar.style.display = "none"; return; }
-    const r = tf.getBoundingClientRect();
-    bar.style.display = "flex";
-    bar.style.left = r.left + "px";
-    bar.style.width = r.width + "px";
+  /* ── 位置：自由浮動、抓握把可拖、記住位置（本機 GM，不同步——各裝置螢幕尺寸不同） ── */
+  const POS = "kv_gbf_pos";                 // 工具列左上角座標 {x,y}（viewport 座標、本機 UI 狀態）
+  const MARGIN = 6;                         // 夾進畫面時跟邊緣留的縫
+  let dragging = false;
+  let pos = (() => { try { const p = JSON.parse(GM_getValue(POS, "null")); return (p && isFinite(p.x) && isFinite(p.y)) ? p : null; } catch { return null; } })();
+  function clampPos(x, y) {                  // 夾進畫面：拖到哪都不會掉出視窗、找不回來
+    const bw = bar.offsetWidth, bh = bar.offsetHeight;
+    const maxX = Math.max(MARGIN, window.innerWidth  - bw - MARGIN);
+    const maxY = Math.max(MARGIN, window.innerHeight - bh - MARGIN);
+    return { x: Math.min(Math.max(x, MARGIN), maxX), y: Math.min(Math.max(y, MARGIN), maxY) };
+  }
+  function applyPos() {                      // 把目前(或預設左下)位置貼上去，並夾回畫面
+    bar.style.maxWidth = (window.innerWidth - 2 * MARGIN) + "px"; // 不超出畫面寬；超過才讓黑底 band 換行
+    if (!pos) pos = { x: MARGIN, y: window.innerHeight - bar.offsetHeight - MARGIN }; // 首次預設：左下角
+    pos = clampPos(pos.x, pos.y);
+    bar.style.left = pos.x + "px"; bar.style.top = pos.y + "px";
     bar.style.right = "auto"; bar.style.bottom = "auto";
-    bar.style.top = (r.top - bar.offsetHeight) + "px"; // 動態高度：多列就往上長
+  }
+  function reposition() {                    // 重畫後/週期：除非正在拖，否則重貼位置(順便夾回畫面、補掛回 DOM)
+    if (dragging) return;
+    if (!bar.isConnected) document.body.appendChild(bar);
+    bar.style.display = "flex";
+    applyPos();
+  }
+  function startDrag(e) {                    // pointer 事件一套吃滑鼠＋觸控；只在握把上觸發
+    if (e.button != null && e.button !== 0) return;          // 只認主鍵
+    e.preventDefault();
+    const r = bar.getBoundingClientRect();
+    const offX = e.clientX - r.left, offY = e.clientY - r.top;
+    dragging = true;
+    const move = (ev) => { const p = clampPos(ev.clientX - offX, ev.clientY - offY); bar.style.left = p.x + "px"; bar.style.top = p.y + "px"; };
+    const up = () => {
+      dragging = false;
+      document.removeEventListener("pointermove", move, true);
+      document.removeEventListener("pointerup", up, true);
+      pos = clampPos(parseFloat(bar.style.left) || MARGIN, parseFloat(bar.style.top) || MARGIN);
+      bar.style.left = pos.x + "px"; bar.style.top = pos.y + "px";
+      GM_setValue(POS, JSON.stringify(pos));                 // 放開存位置（本機）
+    };
+    document.addEventListener("pointermove", move, true);
+    document.addEventListener("pointerup", up, true);
   }
 
   document.body.append(bar, back, card);
-  render(); reposition(); setInterval(reposition, 600);
+  render(); reposition(); setInterval(reposition, 600);    // 週期：補掛回 DOM、夾回畫面（拖曳中跳過）
+  addEventListener("resize", () => { if (!dragging) applyPos(); }, { passive: true }); // 轉向/縮放後夾回畫面
 })();

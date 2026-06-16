@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         碧藍幻想捷徑列（雲端同步）
 // @namespace    https://kvcc.me
-// @version      0.5.0
+// @version      0.5.1
 // @description  在寶物列上方加一排可自訂的捷徑按鈕（標題＋連結）；支援分類（單排＋輪替鈕切換，按一下換下一類）、單鍵快捷鍵（綁 Q 就按 Q）、後台可開關顯示。預設純本機，可選填自架端點跨裝置同步（改了才推、按 ⟳ 手動拉）。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       kv
@@ -91,15 +91,14 @@
     if (it) { e.preventDefault(); e.stopPropagation(); go(it.h); }
   }, true);
 
-  /* ── 捷徑列（多列、往上長；不橫向捲） ── */
+  /* ── 捷徑列（單排 flex-wrap；太多才往上折，不橫向捲） ── */
   const bar = document.createElement("div");
   Object.assign(bar.style, {
     position: "fixed", zIndex: 2147483646, boxSizing: "border-box",
     padding: "2px 4px", background: "rgba(21,15,15,.92)", borderTop: "1px solid #43382e",
-    display: "flex", flexDirection: "column", gap: "3px", alignItems: "flex-start",
+    display: "flex", flexWrap: "wrap", gap: "3px", alignItems: "center", // 全部同一排，太多才往上折
   });
   bar.style.display = "none"; // 先藏，reposition 決定要不要顯示
-  const mkRow = () => { const d = document.createElement("div"); d.style.cssText = "display:flex;flex-wrap:wrap;gap:3px;align-items:center;width:100%"; return d; };
   const mkChip = (label, w, extra) => {
     const c = document.createElement("div"); c.textContent = label;
     Object.assign(c.style, {
@@ -116,22 +115,21 @@
   };
   function render() {
     bar.innerHTML = "";
-    const ctl = mkRow();                                   // 控制列
     const gear = mkChip(editing ? "✓" : "⚙", 22, { background: editing ? "rgba(200,100,69,.6)" : "rgba(0,0,0,.55)" });
     gear.onclick = () => { editing = !editing; render(); };
-    ctl.appendChild(gear);
-    if (!cfg.show && !editing) { bar.appendChild(ctl); reposition(); return; } // 隱藏：只留 ⚙（進編輯可再開回來）
+    bar.appendChild(gear);
+    if (!cfg.show && !editing) { reposition(); return; }   // 隱藏：只留 ⚙（進編輯可再開回來）
     if (editing) {
       const visBtn = mkChip(cfg.show ? "隱藏" : "顯示", 34, { background: "rgba(70,60,90,.55)" });
       visBtn.onclick = () => { cfg.show = !cfg.show; save(); render(); };
-      ctl.appendChild(visBtn);
+      bar.appendChild(visBtn);
       const add = mkChip("＋", 30, { background: "rgba(40,90,70,.55)" });
       add.onclick = () => openEditor(-1);
-      ctl.appendChild(add);
+      bar.appendChild(add);
       if (syncable()) {
         const sy = mkChip("⟳", 28, { background: "rgba(40,70,110,.55)" });
         sy.onclick = () => { if (sy.dataset.b) return; sy.dataset.b = "1"; sy.textContent = "…"; pull((ok) => { if (!ok) { sy.textContent = "✕"; sy.dataset.b = ""; } }); };
-        ctl.appendChild(sy);
+        bar.appendChild(sy);
       }
     }
     // 分類：取出現過的群組（含「無群組」）。>1 個分類才出現輪替鈕，且只顯示當前分類（維持單排）。
@@ -145,12 +143,9 @@
       const cc = mkChip("▸ " + (active || "其他"), 34, { background: "rgba(95,72,42,.7)", borderColor: "#caa15a", padding: "0 7px" });
       cc.title = "分類 " + (idx + 1) + "/" + cats.length + "：按一下換下一個";
       cc.onclick = () => { GM_setValue(CAT, cats[(idx + 1) % cats.length]); render(); };
-      ctl.appendChild(cc);
+      bar.appendChild(cc);
     }
-    bar.appendChild(ctl);
-
-    const row = mkRow();                                   // 只放當前分類的捷徑（單排；該分類太多才往上折）
-    cfg.items.forEach((it, i) => {
+    cfg.items.forEach((it, i) => {                          // 只放當前分類的捷徑，跟上面同一排
       if (cats.length > 1 && (it.g || "").trim() !== active) return;
       const chip = mkChip(it.t, 38, editing ? { borderColor: "#c86445" } : null);
       chip.title = it.h + (it.k ? "（按 " + it.k + "）" : "");
@@ -161,9 +156,8 @@
         chip.appendChild(b);
       }
       chip.onclick = () => (editing ? openEditor(i) : go(it.h));
-      row.appendChild(chip);
+      bar.appendChild(chip);
     });
-    bar.appendChild(row);
     reposition();
   }
 

@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         碧藍幻想捷徑列（雲端同步）
 // @namespace    https://kvcc.me
-// @version      0.3.0
-// @description  在寶物列上方加一排可自訂的捷徑按鈕（標題＋連結）；預設純本機，可選填自架端點跨裝置同步（上傳改了才推、下載按 ⟳ 手動拉）
+// @version      0.4.0
+// @description  在寶物列上方加一排可自訂的捷徑按鈕（標題＋連結）；支援分類（每群一列、往上疊不橫捲）、Alt+鍵 快捷鍵、後台可開關顯示。預設純本機，可選填自架端點跨裝置同步（改了才推、按 ⟳ 手動拉）。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       kv
 // @match        *://game.granbluefantasy.jp/*
@@ -26,37 +26,39 @@
   const SYNC_TOKEN = "";  // 對應的 bearer token
   const syncable = () => !!SYNC_API && !!SYNC_TOKEN;
 
-  const BAR_H = 26;                       // 捷徑列高度（想更扁改小）
   const KEY = "kv_gbf_shortcuts";
   const DEFAULTS = [
     { t: "マイ", h: "mypage" }, { t: "クエ", h: "quest" },
     { t: "店", h: "shop" }, { t: "ガチャ", h: "gacha" },
   ];
 
-  /* ── 儲存：本機快取（GM）＋ 選用雲端同步 ── */
-  const cacheGet = () => { try { return JSON.parse(GM_getValue(KEY, "null")); } catch { return null; } };
-  let items = cacheGet() || DEFAULTS, editing = false;
+  // 設定形狀：{ show:bool, items:[{t,h,g?,k?}] }。g=群組、k=Alt 快捷鍵單鍵。向後相容舊版純陣列。
+  function norm(d) {
+    if (Array.isArray(d)) return { show: true, items: d };
+    if (d && typeof d === "object" && Array.isArray(d.items)) return { show: d.show !== false, items: d.items };
+    return null;
+  }
+  const cacheGet = () => { try { return norm(JSON.parse(GM_getValue(KEY, "null"))); } catch { return null; } };
+  let cfg = cacheGet() || { show: true, items: DEFAULTS };
+  let editing = false;
 
-  function save(list) {                   // 增刪改一律走這：寫本機 + 推雲端
-    items = list;
-    GM_setValue(KEY, JSON.stringify(list));
+  function save() {                       // 寫本機 + 推雲端（整個 cfg 物件）
+    GM_setValue(KEY, JSON.stringify(cfg));
     if (!syncable()) return;
     GM_xmlhttpRequest({
-      method: "PUT", url: SYNC_API, data: JSON.stringify(list),
+      method: "PUT", url: SYNC_API, data: JSON.stringify(cfg),
       headers: { Authorization: "Bearer " + SYNC_TOKEN, "Content-Type": "application/json" },
     });
   }
-  function pull(cb) {                     // 手動同步：拉雲端，有資料就覆蓋重畫；cb(成功?)
+  function pull(cb) {                      // 手動同步：拉雲端，有資料就覆蓋重畫；cb(成功?)
     if (!syncable()) { cb && cb(false); return; }
     GM_xmlhttpRequest({
       method: "GET", url: SYNC_API, headers: { Authorization: "Bearer " + SYNC_TOKEN },
       onload: (r) => {
         let ok = false;
         if (r.status === 200) {
-          try {
-            const d = JSON.parse(r.responseText);
-            if (Array.isArray(d)) { items = d; GM_setValue(KEY, JSON.stringify(d)); ok = true; }
-          } catch {}
+          let n = null; try { n = norm(JSON.parse(r.responseText)); } catch {}
+          if (n) { cfg = n; GM_setValue(KEY, JSON.stringify(cfg)); ok = true; }
         }
         render(); cb && cb(ok);
       },
@@ -66,58 +68,98 @@
 
   /* ── 導航：完整網址換當前頁；GBF 內部路徑走 hash（不重整） ── */
   function go(h) {
-    h = h.trim();
+    h = String(h).trim();
     if (/^https?:\/\//i.test(h)) location.href = h;
     else location.hash = h.replace(/^#?\/?/, "");
   }
 
-  /* ── 捷徑列 ── */
+  // ── Alt+鍵 快捷鍵：任何時候放行（含戰鬥/輸入框）；靠 Alt 修飾避免跟遊戲技能鍵/瀏覽器原生鍵衝突 ──
+  document.addEventListener("keydown", (e) => {
+    if (!e.altKey || e.ctrlKey || e.metaKey) return;
+    const k = (e.key || "").toLowerCase();
+    if (!k || k === "alt") return;
+    const it = cfg.items.find((x) => (x.k || "").toLowerCase() === k);
+    if (it) { e.preventDefault(); e.stopPropagation(); go(it.h); }
+  }, true);
+
+  /* ── 捷徑列（多列、往上長；不橫向捲） ── */
   const bar = document.createElement("div");
   Object.assign(bar.style, {
-    position: "fixed", zIndex: 2147483646, display: "none",
-    boxSizing: "border-box", padding: "2px 4px", gap: "3px", alignItems: "stretch",
-    overflowX: "auto", whiteSpace: "nowrap", background: "rgba(21,15,15,.92)",
-    borderTop: "1px solid #43382e", WebkitOverflowScrolling: "touch",
+    position: "fixed", zIndex: 2147483646, boxSizing: "border-box",
+    padding: "2px 4px", background: "rgba(21,15,15,.92)", borderTop: "1px solid #43382e",
+    display: "flex", flexDirection: "column", gap: "3px", alignItems: "flex-start",
   });
+  bar.style.display = "none"; // 先藏，reposition 決定要不要顯示
+  const mkRow = () => { const d = document.createElement("div"); d.style.cssText = "display:flex;flex-wrap:wrap;gap:3px;align-items:center;width:100%"; return d; };
   const mkChip = (label, w, extra) => {
     const c = document.createElement("div"); c.textContent = label;
     Object.assign(c.style, {
-      flex: "0 0 auto", width: (w || 38) + "px", boxSizing: "border-box",
+      position: "relative", flex: "0 0 auto", boxSizing: "border-box",
+      minWidth: (w || 38) + "px", height: "20px",
       display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center",
-      font: "10px/1 sans-serif", wordBreak: "break-word", overflow: "hidden", color: "#f2eee2",
+      font: "10px/1 sans-serif", color: "#f2eee2",
       background: "rgba(0,0,0,.5)", border: "1px solid #5c575e", borderRadius: "4px",
-      cursor: "pointer", userSelect: "none", padding: "0 1px",
+      cursor: "pointer", userSelect: "none", padding: "0 4px",
     }, extra || {});
+    c.addEventListener("pointerdown", () => (c.style.filter = "brightness(1.4)")); // 按壓回饋，不位移版面
+    const reset = () => (c.style.filter = ""); c.addEventListener("pointerup", reset); c.addEventListener("pointerleave", reset);
     return c;
   };
   function render() {
     bar.innerHTML = "";
+    const ctl = mkRow();                                   // 控制列
     const gear = mkChip(editing ? "✓" : "⚙", 22, { background: editing ? "rgba(200,100,69,.6)" : "rgba(0,0,0,.55)" });
     gear.onclick = () => { editing = !editing; render(); };
-    bar.appendChild(gear);
+    ctl.appendChild(gear);
+    if (!cfg.show && !editing) { bar.appendChild(ctl); reposition(); return; } // 隱藏：只留 ⚙（進編輯可再開回來）
     if (editing) {
-      const add = mkChip("＋", 38, { background: "rgba(40,90,70,.55)" });
+      const visBtn = mkChip(cfg.show ? "隱藏" : "顯示", 34, { background: "rgba(70,60,90,.55)" });
+      visBtn.onclick = () => { cfg.show = !cfg.show; save(); render(); };
+      ctl.appendChild(visBtn);
+      const add = mkChip("＋", 30, { background: "rgba(40,90,70,.55)" });
       add.onclick = () => openEditor(-1);
-      bar.appendChild(add);
-      if (syncable()) {                    // 手動同步鈕：點了才拉雲端
+      ctl.appendChild(add);
+      if (syncable()) {
         const sy = mkChip("⟳", 28, { background: "rgba(40,70,110,.55)" });
-        sy.onclick = () => {
-          if (sy.dataset.b) return;
-          sy.dataset.b = "1"; sy.textContent = "…";
-          pull((ok) => { if (!ok) { sy.textContent = "✕"; sy.dataset.b = ""; } });
-        };
-        bar.appendChild(sy);
+        sy.onclick = () => { if (sy.dataset.b) return; sy.dataset.b = "1"; sy.textContent = "…"; pull((ok) => { if (!ok) { sy.textContent = "✕"; sy.dataset.b = ""; } }); };
+        ctl.appendChild(sy);
       }
     }
-    items.forEach((it, i) => {
-      const chip = mkChip(it.t, 38, editing ? { borderColor: "#c86445" } : null);
-      chip.title = it.h;
-      chip.onclick = () => (editing ? openEditor(i) : go(it.h));
-      bar.appendChild(chip);
+    bar.appendChild(ctl);
+
+    const groups = [], gi = {};                            // 依群組分列（保留出現順序）
+    cfg.items.forEach((it, i) => {
+      const g = (it.g || "").trim();
+      if (!(g in gi)) { gi[g] = groups.length; groups.push({ g, list: [] }); }
+      groups[gi[g]].list.push(i);
     });
+    groups.forEach(({ g, list }) => {
+      const row = mkRow();
+      if (g) {                                             // 群名標籤（非按鈕）
+        const lab = document.createElement("div");
+        lab.textContent = g;
+        lab.style.cssText = "flex:0 0 auto;font:9px/1 sans-serif;color:#a9967e;padding:0 2px;align-self:center;user-select:none;letter-spacing:.5px";
+        row.appendChild(lab);
+      }
+      list.forEach((i) => {
+        const it = cfg.items[i];
+        const chip = mkChip(it.t, 38, editing ? { borderColor: "#c86445" } : null);
+        chip.title = it.h + (it.k ? "（Alt+" + it.k + "）" : "");
+        if (it.k) {                                        // 右上角小快捷鍵提示
+          const b = document.createElement("span");
+          b.textContent = String(it.k).toUpperCase();
+          b.style.cssText = "position:absolute;top:-4px;right:-3px;font:7px/1 sans-serif;color:#1a1410;background:#c9a24a;border-radius:3px;padding:1px 2px;pointer-events:none";
+          chip.appendChild(b);
+        }
+        chip.onclick = () => (editing ? openEditor(i) : go(it.h));
+        row.appendChild(chip);
+      });
+      bar.appendChild(row);
+    });
+    reposition();
   }
 
-  /* ── 編輯面板（標題＋網址兩格，不靠 prompt） ── */
+  /* ── 編輯面板（標題／網址／群組／快捷鍵，不靠 prompt） ── */
   let editIndex = -1;
   const back = document.createElement("div");
   Object.assign(back.style, { position: "fixed", inset: "0", zIndex: 2147483647, background: "rgba(0,0,0,.5)", display: "none" });
@@ -139,6 +181,8 @@
   };
   const tIn = mkInput("標題（短）");
   const uIn = mkInput("網址：quest、party/index/0/npc/0、或 https://…");
+  const gIn = mkInput("群組（可留空，例 素材／戰鬥）");
+  const kIn = mkInput("單一鍵（可留空，例 1 / q；用 Alt+鍵 觸發）"); kIn.maxLength = 1;
   const mkBtn = (txt, bg) => {
     const b = document.createElement("div"); b.textContent = txt;
     b.style.cssText = `padding:7px 12px;border-radius:5px;cursor:pointer;user-select:none;color:#f2eee2;border:1px solid #5c575e;background:${bg}`;
@@ -150,12 +194,12 @@
   const rowEl = document.createElement("div");
   rowEl.style.cssText = "display:flex;gap:8px;justify-content:flex-end;align-items:center";
   rowEl.append(delBtn, cancelBtn, saveBtn);
-  card.append(lbl("標題"), tIn, lbl("網址"), uIn, rowEl);
+  card.append(lbl("標題"), tIn, lbl("網址"), uIn, lbl("群組"), gIn, lbl("快捷鍵（Alt＋）"), kIn, rowEl);
 
   function openEditor(idx) {
     editIndex = idx;
-    tIn.value = idx >= 0 ? items[idx].t : "";
-    uIn.value = idx >= 0 ? items[idx].h : "";
+    const it = idx >= 0 ? cfg.items[idx] : {};
+    tIn.value = it.t || ""; uIn.value = it.h || ""; gIn.value = it.g || ""; kIn.value = it.k || "";
     delBtn.style.display = idx >= 0 ? "block" : "none";
     back.style.display = card.style.display = "block";
     tIn.focus();
@@ -163,32 +207,32 @@
   const closeEditor = () => { back.style.display = card.style.display = "none"; };
   back.onclick = cancelBtn.onclick = closeEditor;
   saveBtn.onclick = () => {
-    const t = tIn.value.trim(), h = uIn.value.trim();
+    const t = tIn.value.trim(), h = uIn.value.trim(), g = gIn.value.trim(), k = kIn.value.trim().slice(0, 1);
     if (!t || !h) { (t ? uIn : tIn).focus(); return; }
-    const l = items.slice();
-    if (editIndex >= 0) l[editIndex] = { t, h }; else l.push({ t, h });
-    save(l); render(); closeEditor();
+    const o = { t, h }; if (g) o.g = g; if (k) o.k = k;
+    if (editIndex >= 0) cfg.items[editIndex] = o; else cfg.items.push(o);
+    save(); render(); closeEditor();
   };
   delBtn.onclick = () => {
-    if (editIndex >= 0) { const l = items.slice(); l.splice(editIndex, 1); save(l); render(); }
+    if (editIndex >= 0) { cfg.items.splice(editIndex, 1); save(); render(); }
     closeEditor();
   };
 
-  /* ── 位置：純用 footer 的 rect 貼齊（同寬、不超出、緊貼上緣，不靠 innerHeight） ── */
-  const vis = (el) => {
+  /* ── 位置：貼齊 footer（同寬、緊貼上緣、往上長；高度動態，不靠 innerHeight） ── */
+  const visEl = (el) => {
     if (!el) return false;
     const cs = getComputedStyle(el);
     return cs.display !== "none" && cs.visibility !== "hidden" && el.getBoundingClientRect().height > 0;
   };
   function reposition() {
     const tf = document.querySelector(".cnt-treasure-footer");
-    if (!vis(tf)) { bar.style.display = "none"; return; }
+    if (!visEl(tf)) { bar.style.display = "none"; return; }
     const r = tf.getBoundingClientRect();
-    Object.assign(bar.style, {
-      display: "flex", height: BAR_H + "px",
-      left: r.left + "px", width: r.width + "px", right: "auto",
-      bottom: "auto", top: (r.top - BAR_H) + "px",
-    });
+    bar.style.display = "flex";
+    bar.style.left = r.left + "px";
+    bar.style.width = r.width + "px";
+    bar.style.right = "auto"; bar.style.bottom = "auto";
+    bar.style.top = (r.top - bar.offsetHeight) + "px"; // 動態高度：多列就往上長
   }
 
   document.body.append(bar, back, card);

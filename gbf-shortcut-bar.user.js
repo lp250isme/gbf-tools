@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         碧藍幻想捷徑列（雲端同步）
 // @namespace    https://kvcc.me
-// @version      0.4.0
-// @description  在寶物列上方加一排可自訂的捷徑按鈕（標題＋連結）；支援分類（每群一列、往上疊不橫捲）、Alt+鍵 快捷鍵、後台可開關顯示。預設純本機，可選填自架端點跨裝置同步（改了才推、按 ⟳ 手動拉）。
+// @version      0.4.1
+// @description  在寶物列上方加一排可自訂的捷徑按鈕（標題＋連結）；支援分類（每群一列、往上疊不橫捲）、單鍵快捷鍵（綁 Q 就按 Q）、後台可開關顯示。預設純本機，可選填自架端點跨裝置同步（改了才推、按 ⟳ 手動拉）。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       kv
 // @match        *://game.granbluefantasy.jp/*
@@ -73,11 +73,14 @@
     else location.hash = h.replace(/^#?\/?/, "");
   }
 
-  // ── Alt+鍵 快捷鍵：任何時候放行（含戰鬥/輸入框）；靠 Alt 修飾避免跟遊戲技能鍵/瀏覽器原生鍵衝突 ──
+  // ── 快捷鍵：直接按綁定的單鍵（綁 Q 就按 Q）。唯一例外：游標在輸入框/文字區時不觸發（否則沒法打字）。
+  //    不吃任何修飾鍵組合（Ctrl/Alt/Meta），以免攔到瀏覽器原生快捷鍵。
   document.addEventListener("keydown", (e) => {
-    if (!e.altKey || e.ctrlKey || e.metaKey) return;
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
+    const ae = document.activeElement;
+    if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA" || ae.tagName === "SELECT" || ae.isContentEditable)) return;
     const k = (e.key || "").toLowerCase();
-    if (!k || k === "alt") return;
+    if (k.length !== 1) return;                          // 只接單字元鍵（略過 Enter/方向鍵等）
     const it = cfg.items.find((x) => (x.k || "").toLowerCase() === k);
     if (it) { e.preventDefault(); e.stopPropagation(); go(it.h); }
   }, true);
@@ -144,7 +147,7 @@
       list.forEach((i) => {
         const it = cfg.items[i];
         const chip = mkChip(it.t, 38, editing ? { borderColor: "#c86445" } : null);
-        chip.title = it.h + (it.k ? "（Alt+" + it.k + "）" : "");
+        chip.title = it.h + (it.k ? "（按 " + it.k + "）" : "");
         if (it.k) {                                        // 右上角小快捷鍵提示
           const b = document.createElement("span");
           b.textContent = String(it.k).toUpperCase();
@@ -182,7 +185,7 @@
   const tIn = mkInput("標題（短）");
   const uIn = mkInput("網址：quest、party/index/0/npc/0、或 https://…");
   const gIn = mkInput("群組（可留空，例 素材／戰鬥）");
-  const kIn = mkInput("單一鍵（可留空，例 1 / q；用 Alt+鍵 觸發）"); kIn.maxLength = 1;
+  const kIn = mkInput("單一鍵（可留空，例 1 / q；直接按該鍵觸發）"); kIn.maxLength = 1;
   const mkBtn = (txt, bg) => {
     const b = document.createElement("div"); b.textContent = txt;
     b.style.cssText = `padding:7px 12px;border-radius:5px;cursor:pointer;user-select:none;color:#f2eee2;border:1px solid #5c575e;background:${bg}`;
@@ -194,7 +197,7 @@
   const rowEl = document.createElement("div");
   rowEl.style.cssText = "display:flex;gap:8px;justify-content:flex-end;align-items:center";
   rowEl.append(delBtn, cancelBtn, saveBtn);
-  card.append(lbl("標題"), tIn, lbl("網址"), uIn, lbl("群組"), gIn, lbl("快捷鍵（Alt＋）"), kIn, rowEl);
+  card.append(lbl("標題"), tIn, lbl("網址"), uIn, lbl("群組"), gIn, lbl("快捷鍵（直接按該鍵）"), kIn, rowEl);
 
   function openEditor(idx) {
     editIndex = idx;

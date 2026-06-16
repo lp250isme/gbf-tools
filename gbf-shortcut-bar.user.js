@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         碧藍幻想捷徑列（雲端同步）
 // @namespace    https://kvcc.me
-// @version      0.5.1
-// @description  在寶物列上方加一排可自訂的捷徑按鈕（標題＋連結）；支援分類（單排＋輪替鈕切換，按一下換下一類）、單鍵快捷鍵（綁 Q 就按 Q）、後台可開關顯示。預設純本機，可選填自架端點跨裝置同步（改了才推、按 ⟳ 手動拉）。
+// @version      0.6.0
+// @description  在寶物列上方加一排可自訂的捷徑按鈕（標題＋連結）；兩排(上控制透明、下捷徑黑底)＋分類輪替鈕、單鍵快捷鍵（綁 Q 就按 Q）、後台可開關顯示。預設純本機，可選填自架端點跨裝置同步（改了才推、按 ⟳ 手動拉）。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       kv
 // @match        *://game.granbluefantasy.jp/*
@@ -91,14 +91,20 @@
     if (it) { e.preventDefault(); e.stopPropagation(); go(it.h); }
   }, true);
 
-  /* ── 捷徑列（單排 flex-wrap；太多才往上折，不橫向捲） ── */
+  /* ── 捷徑列：兩排。上＝控制(⚙/分類,透明無黑底)，下＝捷徑(黑底 band,貼 footer) ── */
   const bar = document.createElement("div");
   Object.assign(bar.style, {
     position: "fixed", zIndex: 2147483646, boxSizing: "border-box",
-    padding: "2px 4px", background: "rgba(21,15,15,.92)", borderTop: "1px solid #43382e",
-    display: "flex", flexWrap: "wrap", gap: "3px", alignItems: "center", // 全部同一排，太多才往上折
+    display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "2px",
   });
   bar.style.display = "none"; // 先藏，reposition 決定要不要顯示
+  const mkBand = (dark) => {   // 一排容器；dark=下排黑底 band（滿寬、貼 footer），否則透明
+    const d = document.createElement("div");
+    let s = "display:flex;flex-wrap:wrap;gap:3px;align-items:center;box-sizing:border-box";
+    if (dark) s += ";width:100%;padding:2px 4px;background:rgba(21,15,15,.92);border-top:1px solid #43382e";
+    d.style.cssText = s;
+    return d;
+  };
   const mkChip = (label, w, extra) => {
     const c = document.createElement("div"); c.textContent = label;
     Object.assign(c.style, {
@@ -115,24 +121,25 @@
   };
   function render() {
     bar.innerHTML = "";
+    const top = mkBand(false);                             // 第一排：控制（透明、無黑底）
     const gear = mkChip(editing ? "✓" : "⚙", 22, { background: editing ? "rgba(200,100,69,.6)" : "rgba(0,0,0,.55)" });
     gear.onclick = () => { editing = !editing; render(); };
-    bar.appendChild(gear);
-    if (!cfg.show && !editing) { reposition(); return; }   // 隱藏：只留 ⚙（進編輯可再開回來）
+    top.appendChild(gear);
+    if (!cfg.show && !editing) { bar.appendChild(top); reposition(); return; } // 隱藏：只留 ⚙
     if (editing) {
       const visBtn = mkChip(cfg.show ? "隱藏" : "顯示", 34, { background: "rgba(70,60,90,.55)" });
       visBtn.onclick = () => { cfg.show = !cfg.show; save(); render(); };
-      bar.appendChild(visBtn);
+      top.appendChild(visBtn);
       const add = mkChip("＋", 30, { background: "rgba(40,90,70,.55)" });
       add.onclick = () => openEditor(-1);
-      bar.appendChild(add);
+      top.appendChild(add);
       if (syncable()) {
         const sy = mkChip("⟳", 28, { background: "rgba(40,70,110,.55)" });
         sy.onclick = () => { if (sy.dataset.b) return; sy.dataset.b = "1"; sy.textContent = "…"; pull((ok) => { if (!ok) { sy.textContent = "✕"; sy.dataset.b = ""; } }); };
-        bar.appendChild(sy);
+        top.appendChild(sy);
       }
     }
-    // 分類：取出現過的群組（含「無群組」）。>1 個分類才出現輪替鈕，且只顯示當前分類（維持單排）。
+    // 分類：>1 個群組才出現輪替鈕（放第一排）；只顯示當前分類。
     const cats = [], seen = {};
     cfg.items.forEach((it) => { const g = (it.g || "").trim(); if (!(g in seen)) { seen[g] = 1; cats.push(g); } });
     let active = "";
@@ -143,9 +150,12 @@
       const cc = mkChip("▸ " + (active || "其他"), 34, { background: "rgba(95,72,42,.7)", borderColor: "#caa15a", padding: "0 7px" });
       cc.title = "分類 " + (idx + 1) + "/" + cats.length + "：按一下換下一個";
       cc.onclick = () => { GM_setValue(CAT, cats[(idx + 1) % cats.length]); render(); };
-      bar.appendChild(cc);
+      top.appendChild(cc);
     }
-    cfg.items.forEach((it, i) => {                          // 只放當前分類的捷徑，跟上面同一排
+    bar.appendChild(top);
+
+    const bottom = mkBand(true);                           // 第二排：捷徑（黑底 band、貼 footer）
+    cfg.items.forEach((it, i) => {
       if (cats.length > 1 && (it.g || "").trim() !== active) return;
       const chip = mkChip(it.t, 38, editing ? { borderColor: "#c86445" } : null);
       chip.title = it.h + (it.k ? "（按 " + it.k + "）" : "");
@@ -156,8 +166,9 @@
         chip.appendChild(b);
       }
       chip.onclick = () => (editing ? openEditor(i) : go(it.h));
-      bar.appendChild(chip);
+      bottom.appendChild(chip);
     });
+    bar.appendChild(bottom);
     reposition();
   }
 

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         碧藍幻想小工具
 // @namespace    https://gist.github.com/biuuu
-// @version      0.2.1
+// @version      0.2.2
 // @description  碧藍幻想瀏覽器輔助工具：隱藏滾動條、側邊欄、聊天室、救援清單雙欄(可開關)、自動選取下拉選單、保持 BGM 播放等
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       biuuu (原作), kv (修改)
@@ -35,11 +35,12 @@
 
   /* 救援/搜尋清單雙欄（可從腳本選單開關，預設關）。不隱藏任何資訊。 */
   const PREF_2COL = "gbfTwoCol";
-  // 用 :has 抓「直接包著卡片的容器」(容器無關,不用猜 class)強制橫向 wrap；卡片 zoom 縮到兩張並排。
-  const TWO_COL_CSS = ":has(> .lis-raid){display:flex!important;flex-wrap:wrap!important;flex-direction:row!important;justify-content:center!important;align-content:flex-start!important}.lis-raid{zoom:.5;margin:3px!important}";
+  // grid 強制兩欄：欄數寫死 2(不靠卡片寬度算 wrap——卡固定 width:303px 會被誤判成放不下兩張)；
+  // 卡片 zoom 縮到塞進格子。容器 .prt-raid-list 新着(#prt-multi-list)與搜尋(#prt-search-list)都有此 class。
+  const TWO_COL_CSS = ".prt-raid-list{display:grid!important;grid-template-columns:repeat(2,1fr)!important;justify-items:center!important;align-content:start!important;gap:2px!important}.prt-raid-list .lis-raid{zoom:.5;margin:0!important}";
   const colStyle = document.createElement("style");
   document.head.appendChild(colStyle);
-  const applyTwoCol = () => { colStyle.textContent = GM_getValue(PREF_2COL, false) ? TWO_COL_CSS : ""; };
+  const applyTwoCol = () => { colStyle.textContent = GM_getValue(PREF_2COL, true) ? TWO_COL_CSS : ""; };
   applyTwoCol();
 
   /* ─────────────────────────────────────
@@ -128,7 +129,7 @@
     let menuId;
     const buildMenu = () => {
       if (menuId != null && typeof GM_unregisterMenuCommand === "function") { try { GM_unregisterMenuCommand(menuId); } catch (e) {} }
-      const on = GM_getValue(PREF_2COL, false);
+      const on = GM_getValue(PREF_2COL, true);
       menuId = GM_registerMenuCommand((on ? "✅ 救援清單雙欄：開" : "⬜ 救援清單雙欄：關"),
         () => { GM_setValue(PREF_2COL, !on); applyTwoCol(); buildMenu(); });
     };

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         碧藍幻想 青箱線提示
 // @namespace    gbf-aobako-line
-// @version      0.9.2
+// @version      0.9.3
 // @description  多人戰鬥中即時顯示「你的貢献度 vs 此本青箱線」兩排原生風工具條(可拖、文字可複製)，過線標✅；過線/滅団(隊伍全空圖)可推手機提醒(選用·走自架推播中心)。貢献度讀 .prt-mvp 自己那列(class=player)；本名自動掃 .cnt-raid-stage 文字比對；單顆 ⚙ 選單＝手動覆寫本名／認不出時列候選字串複製校正。線資料逐王內建並標明估計/確定/無青箱/無資料 + 來源。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @match        *://game.granbluefantasy.jp/*
@@ -213,13 +213,13 @@
   const menuBtn = document.createElement("div");
   menuBtn.className = "aobako-btn";
   menuBtn.title = "選單：手動覆寫本名／認不出時列候選字串複製";
-  menuBtn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="rgba(215,235,247,.95)"><path d="M19.4 13c.04-.32.06-.66.06-1s-.02-.68-.07-1l2.11-1.63a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.3 7.3 0 0 0-1.73-1l-.38-2.65A.49.49 0 0 0 14 1h-4a.49.49 0 0 0-.49.42l-.38 2.65c-.63.25-1.2.59-1.73 1l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.64L4.57 11c-.05.32-.07.66-.07 1s.02.68.07 1l-2.11 1.63a.5.5 0 0 0-.12.64l2 3.46c.14.24.42.31.61.22l2.49-1c.53.41 1.1.75 1.73 1l.38 2.65c.05.24.25.42.49.42h4c.24 0 .45-.18.49-.42l.38-2.65c.63-.25 1.2-.59 1.73-1l2.49 1c.19.09.47.02.61-.22l2-3.46a.5.5 0 0 0-.12-.64L19.4 13zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg>';
-  menuBtn.style.cssText = "flex:0 0 auto;box-sizing:border-box;width:20px;height:20px;display:flex;align-items:center;justify-content:center;background:" + NATIVE_BTN_BG + ";border:none;border-radius:5px;box-shadow:0 1px 2px rgba(0,0,0,.4);cursor:pointer;" + NOSEL;
+  menuBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="rgba(215,235,247,.95)"><path d="M19.4 13c.04-.32.06-.66.06-1s-.02-.68-.07-1l2.11-1.63a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.3 7.3 0 0 0-1.73-1l-.38-2.65A.49.49 0 0 0 14 1h-4a.49.49 0 0 0-.49.42l-.38 2.65c-.63.25-1.2.59-1.73 1l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.64L4.57 11c-.05.32-.07.66-.07 1s.02.68.07 1l-2.11 1.63a.5.5 0 0 0-.12.64l2 3.46c.14.24.42.31.61.22l2.49-1c.53.41 1.1.75 1.73 1l.38 2.65c.05.24.25.42.49.42h4c.24 0 .45-.18.49-.42l.38-2.65c.63-.25 1.2-.59 1.73-1l2.49 1c.19.09.47.02.61-.22l2-3.46a.5.5 0 0 0-.12-.64L19.4 13zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg>';
+  menuBtn.style.cssText = "flex:0 0 auto;box-sizing:border-box;height:18px;padding:0 6px;display:flex;align-items:center;justify-content:center;background:" + NATIVE_BTN_BG + ";border:none;border-radius:5px;box-shadow:0 1px 2px rgba(0,0,0,.4);cursor:pointer;" + NOSEL;
 
-  // 左欄（握把＋⚙ 直立堆疊）＋ 右欄（本名／數值 兩排，左對齊）
-  const ctrlCol = document.createElement("div");
-  ctrlCol.style.cssText = "display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex:0 0 auto";
-  ctrlCol.append(grip, menuBtn);
+  // 左：握把＋⚙ 並排（同捷徑列）；右：本名／數值 兩排左對齊
+  const ctrlRow = document.createElement("div");
+  ctrlRow.style.cssText = "display:flex;align-items:center;gap:5px;flex:0 0 auto";
+  ctrlRow.append(grip, menuBtn);
   const statsRow = document.createElement("div");
   statsRow.style.cssText = "display:flex;align-items:center;gap:4px;white-space:nowrap";
   statsRow.append(elContrib, sep(), elLine, elVerdict);
@@ -228,7 +228,7 @@
   textCol.append(elName, statsRow);
   const topRow = document.createElement("div");
   topRow.style.cssText = "display:flex;align-items:center;gap:7px;white-space:nowrap";
-  topRow.append(ctrlCol, textCol);
+  topRow.append(ctrlRow, textCol);
 
   // 展開選單（一顆 ⚙ 同時含：手動覆寫下拉 + 候選字串）
   const expand = document.createElement("div");

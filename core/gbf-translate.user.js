@@ -18,6 +18,8 @@
 // @connect      api.deepl.com
 // @connect      generativelanguage.googleapis.com
 // @connect      api.openai.com
+// @updateURL    https://raw.githubusercontent.com/lp250isme/gbf-tools/main/core/gbf-translate.user.js
+// @downloadURL  https://raw.githubusercontent.com/lp250isme/gbf-tools/main/core/gbf-translate.user.js
 // ==/UserScript==
 (function () {
   "use strict";

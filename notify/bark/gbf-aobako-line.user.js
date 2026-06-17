@@ -1,6 +1,6 @@
 // ==UserScript==
-// @name         碧藍幻想 青箱線提示（kv 推播中心）
-// @namespace    gbf-aobako-line-kv
+// @name         碧藍幻想 青箱線提示（純 Bark）
+// @namespace    gbf-aobako-line-bark
 // @version      1.0.0
 // @description  多人戰鬥中即時顯示「你的貢献度 vs 此本青箱線」兩排原生風工具條(可拖、文字可複製)，過線標✅；過線/滅団(隊伍全空圖)可推手機提醒(選用·走自架推播中心)。貢献度讀 .prt-mvp 自己那列(class=player)；本名自動掃 .cnt-raid-stage 文字比對；單顆 ⚙ 選單＝手動覆寫本名／認不出時列候選字串複製校正。線資料逐王內建並標明估計/確定/無青箱/無資料 + 來源。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
@@ -13,33 +13,32 @@
 // @grant        GM_unregisterMenuCommand
 // @grant        GM_setValue
 // @grant        GM_getValue
-// @connect      go.kvcc.me
-// @updateURL    https://raw.githubusercontent.com/lp250isme/gbf-tools/main/kv/gbf-aobako-line.user.js
-// @downloadURL  https://raw.githubusercontent.com/lp250isme/gbf-tools/main/kv/gbf-aobako-line.user.js
+// @connect      api.day.app
+// @updateURL    https://raw.githubusercontent.com/lp250isme/gbf-tools/main/notify/bark/gbf-aobako-line.user.js
+// @downloadURL  https://raw.githubusercontent.com/lp250isme/gbf-tools/main/notify/bark/gbf-aobako-line.user.js
 // ==/UserScript==
 (function () {
   "use strict";
   if (window.__aobakoLine) return; window.__aobakoLine = true;
 
   /* ─────────────────────────────────────
-   * 過線／滅団推播（選用）走 kv 推播中心 POST go.kvcc.me/api/notify（同 Codex/三CLI hook）。
-   * token 由「腳本選單 → 🔑 kv 推播中心 token」設定（存 GM，選單優先），或填下方預設。空＝不推。
-   * ⚠ 本檔在公開 repo，真實 token 只在你本機腳本管理器裡填，勿提交回來。
+   * 過線／滅団推播（選用）走 Bark（api.day.app 直連，手機 Bark App device key）。
+   * key 由「腳本選單 → 🔑 Bark key」設定（存 GM，選單優先），或填下方預設。空＝不推。
+   * ⚠ 本檔在公開 repo，真實 key 只在你本機腳本管理器裡填，勿提交回來。
    * ───────────────────────────────────── */
-  const NOTIFY_API       = "https://go.kvcc.me/api/notify";
-  const DEFAULT_KV_TOKEN = "";  // kv 推播中心 token（選單設定優先；本機填，勿提交回 repo）
-  const NOTIFY_ICON      = "https://game.granbluefantasy.jp/favicon.ico"; // 想要品牌 icon 可換 go.kvcc.me/icon-gbf.png
-  const PREF = { kv: "aobakoToken", over: "aobakoNotifyOver", wipe: "aobakoNotifyWipe" };
-  const kvTok = () => (GM_getValue(PREF.kv, "") || DEFAULT_KV_TOKEN);
-  const isOn = (k) => GM_getValue(k, true);   // 推播開關，預設開（仍需有 token 才送）
+  const DEFAULT_BARK_KEY = "";  // Bark device key（選單設定優先；本機填，勿提交回 repo）
+  const NOTIFY_ICON      = "https://game.granbluefantasy.jp/favicon.ico";
+  const PREF = { bark: "aobakoBarkKey", over: "aobakoNotifyOver", wipe: "aobakoNotifyWipe" };
+  const barkKey = () => (GM_getValue(PREF.bark, "") || DEFAULT_BARK_KEY);
+  const isOn = (k) => GM_getValue(k, true);   // 推播開關，預設開（仍需有 key 才送）
+  const enc = encodeURIComponent;
   function notify(o) {  // o = { title, subtitle?, body }
-    const kt = kvTok();
-    if (!kt) return;
+    const bk = barkKey();
+    if (!bk || bk.indexOf("填入") !== -1) return;
+    const t = o.title || "GBF";
+    const b = (o.subtitle ? o.subtitle + " " : "") + (o.body || "");
     try {
-      GM_xmlhttpRequest({
-        method: "POST", url: NOTIFY_API, headers: { "Content-Type": "application/json" },
-        data: JSON.stringify(Object.assign({ token: kt, group: "GBF", sound: "glass", icon: NOTIFY_ICON }, o)),
-      });
+      GM_xmlhttpRequest({ method: "GET", url: `https://api.day.app/${bk}/${enc(t)}/${enc(b)}?group=${enc("GBF")}&sound=glass&icon=${enc(NOTIFY_ICON)}` });
     } catch {}
   }
   let notifiedHash = ""; // 已推過「過線」的戰鬥 hash（每場只推一次）
@@ -369,10 +368,10 @@
         () => { GM_setValue(PREF.over, !isOn(PREF.over)); buildMenu(); }));
       ids.push(GM_registerMenuCommand((isOn(PREF.wipe) ? "🔔 滅団推播：開" : "🔕 滅団推播：關"),
         () => { GM_setValue(PREF.wipe, !isOn(PREF.wipe)); buildMenu(); }));
-      ids.push(GM_registerMenuCommand((kvTok() ? "🔑 kv 推播中心 token（已設）" : "🔑 kv 推播中心 token（未設）"),
-        () => { const v = prompt("kv 推播中心 token（留空＝清除）", GM_getValue(PREF.kv, "")); if (v !== null) { GM_setValue(PREF.kv, v.trim()); buildMenu(); } }));
+      ids.push(GM_registerMenuCommand((barkKey() ? "🔑 Bark key（已設）" : "🔑 Bark key（未設）"),
+        () => { const v = prompt("Bark device key（留空＝清除）", GM_getValue(PREF.bark, "")); if (v !== null) { GM_setValue(PREF.bark, v.trim()); buildMenu(); } }));
       ids.push(GM_registerMenuCommand("ℹ️ 推播狀態",
-        () => alert("kv 推播中心：" + (kvTok() ? "已設" : "未設") + "\n過線推播：" + (isOn(PREF.over) ? "開" : "關") + "\n滅団推播：" + (isOn(PREF.wipe) ? "開" : "關"))));
+        () => alert("Bark：" + (barkKey() ? "已設" : "未設") + "\n過線推播：" + (isOn(PREF.over) ? "開" : "關") + "\n滅団推播：" + (isOn(PREF.wipe) ? "開" : "關"))));
     };
     buildMenu();
   }

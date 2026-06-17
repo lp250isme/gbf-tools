@@ -17,15 +17,15 @@ Then open the `.user.js` you want and click **Raw** — the manager will prompt 
 
 | File | What it is |
 |---|---|
-| `gbf-tools.user.js` | **Main script**: hide scrollbar/sidebar, copyable raid codes, keep BGM, enhanced drop/skill/quantity selects |
-| `gbf-shortcut-bar.user.js` | **Shortcut bar** (frosted-glass look): floating bar of custom buttons, optional cloud sync |
-| `gbf-shortcut-bar-native.user.js` | Shortcut bar (GBF native button look); install one or the other |
-| `gbf-translate.user.js` | **Live translation**: translates GBF's Japanese DOM text in place |
-| `kv/` ・ `bark/` | **Push scripts** (blue-chest line / battle done / wipe / energy); split by push channel, see below |
+| `core/gbf-tools.user.js` | **Main script**: hide scrollbar/sidebar, copyable raid codes, keep BGM, enhanced drop/skill/quantity selects |
+| `core/shortcut-bar-glass.user.js` | **Shortcut bar** (frosted-glass look): floating bar of custom buttons, optional cloud sync |
+| `core/shortcut-bar-native.user.js` | Shortcut bar (GBF native button look); install one or the other |
+| `core/gbf-translate.user.js` | **Live translation**: translates GBF's Japanese DOM text in place |
+| `notify/kv/` ・ `notify/bark/` | **Push scripts** (blue-chest line / battle done / wipe / energy); split by push channel, see below |
 
 ---
 
-## Main script: `gbf-tools.user.js`
+## Main script: `core/gbf-tools.user.js`
 
 | Feature | Description |
 |---|---|
@@ -37,11 +37,11 @@ Then open the `.user.js` you want and click **Raw** — the manager will prompt 
 | 📈 Auto max skill level | Auto-selects the highest skill level |
 | 📦 Auto half quantity | Auto-selects the smallest option ≥ half of max (skips artifact page) |
 
-## Shortcut bar: `gbf-shortcut-bar*.user.js`
+## Shortcut bar: `core/shortcut-bar-*.user.js`
 
 A floating bar of **custom shortcut buttons** (title + link) that jump straight to a page (GBF internal paths like `quest`, `party/index/0/npc/0`, or any full URL).
 
-- **Two looks, install one** (same features): `gbf-shortcut-bar.user.js` = frosted glass; `gbf-shortcut-bar-native.user.js` = GBF native button sprites. Same `@name`, so installing the other just reskins it and keeps your settings.
+- **Two looks, install one** (same features): `core/shortcut-bar-glass.user.js` = frosted glass; `core/shortcut-bar-native.user.js` = GBF native button sprites. Same `@name`, so installing the other just reskins it and keeps your settings.
 - **Draggable**: grab the **⠿** handle, drop anywhere; position is remembered (local). Clamped back on-screen if dragged off.
 - **Categories**: shortcuts can have a group; with multiple groups a gold "cycle category" chip appears.
 - **Hotkeys**: bind a single key per shortcut (won't fire while typing in inputs).
@@ -52,7 +52,7 @@ A floating bar of **custom shortcut buttons** (title + link) that jump straight 
 
 Fill `SYNC_API` / `SYNC_TOKEN` at the top of the script (your own endpoint) to share across devices. The contract is tiny: `GET` returns the last saved JSON (or `null`), `PUT` stores the request body verbatim, both authed via `Authorization: Bearer <SYNC_TOKEN>`. A Cloudflare Workers + KV free tier works.
 
-## Live translation: `gbf-translate.user.js`
+## Live translation: `core/gbf-translate.user.js`
 
 Translates GBF's **Japanese DOM text** into Chinese in place — skill/weapon effects, summons, quests & story, menus. Replaces the original, caches results to save quota, follows page changes. **Defaults to Google Translate (free, no key) and works out of the box**; switch to DeepL (needs a key) from the menu if needed.
 
@@ -60,14 +60,14 @@ Translates GBF's **Japanese DOM text** into Chinese in place — skill/weapon ef
 
 ---
 
-## Push scripts (`kv/` and `bark/`)
+## Push scripts (`notify/kv/` and `notify/bark/`)
 
 Battle-related phone push, split into two folders by **push channel** — **install from one folder only** (don't install both channels of the same script, or it double-pushes):
 
 | Folder | Channel | For |
 |---|---|---|
-| `kv/` | **kv push hub** (self-hosted `POST /api/notify`) | People with their own push backend |
-| `bark/` | **Bark** (`api.day.app` direct) | People using [Bark App](https://bark.day.app/) |
+| `notify/kv/` | **kv push hub** (self-hosted `POST /api/notify`) | People with their own push backend |
+| `notify/bark/` | **Bark** (`api.day.app` direct) | People using [Bark App](https://bark.day.app/) |
 
 ### Included scripts
 
@@ -77,12 +77,12 @@ Battle-related phone push, split into two folders by **push channel** — **inst
 | `gbf-aobako-line.user.js` | **Blue-chest line**: in-battle bar showing "your honors vs this raid's blue-chest line", marks ✅ when crossed; can push on "crossed / wiped" | ✅ | ✅ |
 | `gbf-genki-notify.user.js` | **Energy refilled**: pushes when expedition energy is full (**scheduled** — arrives even with the browser closed) | ✅ | — |
 
-> Energy is a scheduled push (compute the refill time → post to a self-hosted scheduler → fires later), which is inherently the kv self-hosted setup; Bark has no equivalent "fire on a timer while closed", so it lives only in `kv/`.
+> Energy is a scheduled push (compute the refill time → post to a self-hosted scheduler → fires later), which is inherently the kv self-hosted setup; Bark has no equivalent "fire on a timer while closed", so it lives only in `notify/kv/`.
 
 ### Configure (after install)
 
 Use the menu under **Tampermonkey icon → that script** — **no code editing needed**:
-- 🔑 Set token/key (`kv/` sets the kv push-hub token; `bark/` sets the Bark device key)
+- 🔑 Set token/key (`notify/kv/` sets the kv push-hub token; `notify/bark/` sets the Bark device key)
 - 🔔/🔕 Toggle each notification **independently** (done / wipe / line-crossed / wipe)
 - ℹ️ Show current status
 

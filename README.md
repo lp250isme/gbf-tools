@@ -17,15 +17,15 @@
 
 | 檔案 | 是什麼 |
 |---|---|
-| `gbf-tools.user.js` | **主腳本**：隱藏滾動條／側欄、救援碼可複製、保持 BGM、水滴／技能／數量選單增強 |
-| `gbf-shortcut-bar.user.js` | **捷徑列**（霜玻璃外觀）：可自訂按鈕的浮動工具列，可選雲端同步 |
-| `gbf-shortcut-bar-native.user.js` | 捷徑列（GBF 原生按鈕外觀）；與上者擇一裝 |
-| `gbf-translate.user.js` | **即時翻譯**：把 GBF 日文 DOM 文字即時翻成中文 |
-| `kv/` ・ `bark/` | **推播腳本**（青箱線／打完了／全滅／元氣）；依推播通道分兩資料夾，見下方 |
+| `core/gbf-tools.user.js` | **主腳本**：隱藏滾動條／側欄、救援碼可複製、保持 BGM、水滴／技能／數量選單增強 |
+| `core/shortcut-bar-glass.user.js` | **捷徑列**（霜玻璃外觀）：可自訂按鈕的浮動工具列，可選雲端同步 |
+| `core/shortcut-bar-native.user.js` | 捷徑列（GBF 原生按鈕外觀）；與上者擇一裝 |
+| `core/gbf-translate.user.js` | **即時翻譯**：把 GBF 日文 DOM 文字即時翻成中文 |
+| `notify/kv/` ・ `notify/bark/` | **推播腳本**（青箱線／打完了／全滅／元氣）；依推播通道分兩資料夾，見下方 |
 
 ---
 
-## 主腳本：`gbf-tools.user.js`
+## 主腳本：`core/gbf-tools.user.js`
 
 | 功能 | 說明 |
 |---|---|
@@ -37,11 +37,11 @@
 | 📈 技能等級自動選最高 | 技能升級選單自動選最高等級 |
 | 📦 數量選單自動半選 | 數量選單自動選 ≥ 最大值一半的最小選項（artifact 頁跳過） |
 
-## 捷徑列：`gbf-shortcut-bar*.user.js`
+## 捷徑列：`core/shortcut-bar-*.user.js`
 
 一條**可自訂捷徑按鈕**（標題＋連結）的浮動工具列，點了直接跳指定頁（GBF 內部路徑如 `quest`、`party/index/0/npc/0`，或任意完整網址）。
 
-- **兩種外觀擇一裝**（功能相同）：`gbf-shortcut-bar.user.js`＝霜玻璃；`gbf-shortcut-bar-native.user.js`＝GBF 原生按鈕底圖。兩支 `@name` 相同，裝另一支＝就地換皮、設定保留。
+- **兩種外觀擇一裝**（功能相同）：`core/shortcut-bar-glass.user.js`＝霜玻璃；`core/shortcut-bar-native.user.js`＝GBF 原生按鈕底圖。兩支 `@name` 相同，裝另一支＝就地換皮、設定保留。
 - **浮動可拖**：抓左上握把 **⠿** 拖到任一處、放開記住位置（本機）；拖出畫面自動夾回。
 - **分類**：捷徑可填群組；多群組時出現金色「分類輪替鈕」，按一下換下一類。
 - **快捷鍵**：每個捷徑可綁一鍵，直接按該鍵就跳（在輸入框時不觸發）。
@@ -52,7 +52,7 @@
 
 填腳本開頭 `SYNC_API` / `SYNC_TOKEN`（用你自己的端點）即可多裝置共用。端點契約極簡：`GET` 回傳上次存的 JSON（沒有回 `null`）、`PUT` 原樣存 request body，皆用 `Authorization: Bearer <SYNC_TOKEN>` 驗證。可用 Cloudflare Workers + KV 免費實作。
 
-## 即時翻譯：`gbf-translate.user.js`
+## 即時翻譯：`core/gbf-translate.user.js`
 
 把 GBF 的**日文 DOM 文字即時翻成中文**——技能／武器效果、召喚石、任務與劇情、各種選單。譯文取代原文、會快取省額度，換頁也跟著翻。**預設用 Google 翻譯（免費、免 key），裝完即用**；卡了可用選單換 DeepL（需 key）。
 
@@ -60,14 +60,14 @@
 
 ---
 
-## 推播腳本（`kv/` 與 `bark/`）
+## 推播腳本（`notify/kv/` 與 `notify/bark/`）
 
 戰鬥相關的手機推播，依**推播通道**分兩個資料夾，**擇一資料夾安裝**（同一支不要兩個通道都裝，會重複推）：
 
 | 資料夾 | 通道 | 適合 |
 |---|---|---|
-| `kv/` | **kv 推播中心**（自架 `POST /api/notify`） | 有自己推播後端的人 |
-| `bark/` | **Bark**（`api.day.app` 直連） | 用 [Bark App](https://bark.day.app/) 的人 |
+| `notify/kv/` | **kv 推播中心**（自架 `POST /api/notify`） | 有自己推播後端的人 |
+| `notify/bark/` | **Bark**（`api.day.app` 直連） | 用 [Bark App](https://bark.day.app/) 的人 |
 
 ### 內含腳本
 
@@ -77,12 +77,12 @@
 | `gbf-aobako-line.user.js` | **青箱線**：戰鬥中即時顯示「貢献度 vs 此本青箱線」工具條，過線標 ✅，並可推「過線／滅団」 | ✅ | ✅ |
 | `gbf-genki-notify.user.js` | **元氣回滿**：探検隊元氣回滿時推播（**排程式**，關瀏覽器也收得到） | ✅ | — |
 
-> 元氣是「算出回滿時刻 → 丟自架排程端點 → 到點才推」的排程推播，本質就是 kv 自架那套；Bark 無對等的「定時、關著也推」能力，故只在 `kv/`。
+> 元氣是「算出回滿時刻 → 丟自架排程端點 → 到點才推」的排程推播，本質就是 kv 自架那套；Bark 無對等的「定時、關著也推」能力，故只在 `notify/kv/`。
 
 ### 設定（裝好後）
 
 從 **Tampermonkey 圖示 → 該腳本** 的選單操作，**不用改程式碼**：
-- 🔑 設定 token／key（`kv/` 設 kv 推播中心 token；`bark/` 設 Bark device key）
+- 🔑 設定 token／key（`notify/kv/` 設 kv 推播中心 token；`notify/bark/` 設 Bark device key）
 - 🔔/🔕 各類通知**各自開關**（打完了／全滅／過線／滅団）
 - ℹ️ 查看目前狀態
 

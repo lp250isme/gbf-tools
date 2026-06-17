@@ -12,6 +12,8 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @connect      *
+// @updateURL    https://raw.githubusercontent.com/lp250isme/gbf-tools/main/core/shortcut-bar-native.user.js
+// @downloadURL  https://raw.githubusercontent.com/lp250isme/gbf-tools/main/core/shortcut-bar-native.user.js
 // ==/UserScript==
 (function () {
   "use strict";

@@ -9,6 +9,8 @@
 // @match        *://gbf.game.mbga.jp/*
 // @run-at       document-body
 // @grant        none
+// @updateURL    https://raw.githubusercontent.com/lp250isme/gbf-tools/main/core/gbf-tools.user.js
+// @downloadURL  https://raw.githubusercontent.com/lp250isme/gbf-tools/main/core/gbf-tools.user.js
 // ==/UserScript==
 (function () {
   "use strict";

@@ -12,8 +12,8 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @connect      *
-// @updateURL    https://raw.githubusercontent.com/lp250isme/gbf-tools/main/kv/gbf-genki-notify.user.js
-// @downloadURL  https://raw.githubusercontent.com/lp250isme/gbf-tools/main/kv/gbf-genki-notify.user.js
+// @updateURL    https://raw.githubusercontent.com/lp250isme/gbf-tools/main/notify/kv/gbf-genki-notify.user.js
+// @downloadURL  https://raw.githubusercontent.com/lp250isme/gbf-tools/main/notify/kv/gbf-genki-notify.user.js
 // ==/UserScript==
 (function () {
   "use strict";

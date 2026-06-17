@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         碧藍幻想 青箱線提示
 // @namespace    gbf-aobako-line
-// @version      0.8.8
-// @description  多人戰鬥中即時顯示「你的貢献度 vs 此本青箱線」單列原生風工具條，過線標✅；過線/滅団可推手機提醒(選用·走自架推播中心)。貢献度讀 .prt-mvp 自己那列(class=player)；本名自動掃 .cnt-raid-stage 文字比對(認不出點🔍列候選字串，免 console)；⚙手動覆寫。線資料逐王內建並標明估計/確定/無青箱/無資料 + 來源。
+// @version      0.9.0
+// @description  多人戰鬥中即時顯示「你的貢献度 vs 此本青箱線」兩排原生風工具條(可拖、文字可複製)，過線標✅；過線/滅団(隊伍全空圖)可推手機提醒(選用·走自架推播中心)。貢献度讀 .prt-mvp 自己那列(class=player)；本名自動掃 .cnt-raid-stage 文字比對；單顆 ⚙ 選單＝手動覆寫本名／認不出時列候選字串複製校正。線資料逐王內建並標明估計/確定/無青箱/無資料 + 來源。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @match        *://game.granbluefantasy.jp/*
 // @match        *://gbf.game.mbga.jp/*
@@ -182,56 +182,63 @@
   bar.className = "aobako-bar";
   Object.assign(bar.style, {
     position: "fixed", zIndex: 2147483646, boxSizing: "border-box",
-    display: "flex", flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: "4px",
-    padding: "3px 6px",
-    font: "9px/1 'Hiragino Kaku Gothic ProN',sans-serif", color: "#d7ebf7",
+    display: "flex", flexDirection: "column", alignItems: "stretch", gap: "2px",
+    padding: "3px 7px",
+    font: "9px/1.25 'Hiragino Kaku Gothic ProN',sans-serif", color: "#d7ebf7",
     textShadow: "0 1px 1px rgba(0,0,0,.85)",
     background: "linear-gradient(to bottom, rgba(38,50,63,.96), rgba(18,25,33,.96))",
     border: "1px solid #0e151d", borderRadius: "6px",
     boxShadow: "0 4px 14px rgba(0,0,0,.55), inset 0 1px 0 rgba(120,150,175,.35)",
-    whiteSpace: "nowrap",
   });
   bar.style.display = "none";
 
-  // 握把（6 點，同捷徑列）
+  const NOSEL = "user-select:none;-webkit-user-select:none;";
+  const SEL = "user-select:text;-webkit-user-select:text;cursor:text;"; // 字可框選複製
+
+  // 握把（6 點，同捷徑列）—— 不可選取（拖曳用）
   const grip = document.createElement("div");
   grip.title = "拖曳移動";
-  grip.style.cssText = "flex:0 0 auto;cursor:grab;touch-action:none;display:flex;align-items:center;padding:0 1px";
+  grip.style.cssText = "flex:0 0 auto;cursor:grab;touch-action:none;display:flex;align-items:center;padding:0 2px 0 0;" + NOSEL;
   grip.innerHTML = '<svg width="6" height="12" viewBox="0 0 6 12" fill="rgba(190,212,232,.6)" aria-hidden="true"><circle cx="1.5" cy="2" r="1"/><circle cx="4.5" cy="2" r="1"/><circle cx="1.5" cy="6" r="1"/><circle cx="4.5" cy="6" r="1"/><circle cx="1.5" cy="10" r="1"/><circle cx="4.5" cy="10" r="1"/></svg>';
 
-  const mkSpan = (extra) => { const s = document.createElement("span"); s.style.cssText = "flex:0 0 auto;" + (extra || ""); return s; };
-  const sep = () => mkSpan("opacity:.3;");
+  const mkSpan = (extra) => { const s = document.createElement("span"); s.style.cssText = "flex:0 0 auto;" + SEL + (extra || ""); return s; };
+  const sep = () => { const s = document.createElement("span"); s.style.cssText = "flex:0 0 auto;opacity:.3;" + NOSEL; s.textContent = "·"; return s; };
   const elName = mkSpan("font-weight:700;");
   const elContrib = mkSpan("");
   const elLine = mkSpan("");
   const elVerdict = mkSpan("font-weight:700;");
-  const spacer = mkSpan("flex:1 1 auto;min-width:4px;");
+  const spacer = document.createElement("span"); spacer.style.cssText = "flex:1 1 auto;min-width:6px;";
 
-  const mkBtn = (txt, title) => {
-    const b = document.createElement("span"); b.className = "aobako-btn"; b.textContent = txt; b.title = title;
-    b.style.cssText = "flex:0 0 auto;cursor:pointer;opacity:.72;font-size:10px;padding:0 1px;user-select:none";
-    return b;
-  };
-  const probeBtn = mkBtn("🔍", "認不出本名時點這個，列出候選字串供回報校準");
-  const gearBtn = mkBtn("⚙", "手動覆寫本名");
+  // 單一功能鈕 ⚙：點開選單（手動覆寫 + 候選字串）
+  const menuBtn = document.createElement("span");
+  menuBtn.className = "aobako-btn"; menuBtn.textContent = "⚙";
+  menuBtn.title = "選單：手動覆寫本名／認不出時列候選字串複製";
+  menuBtn.style.cssText = "flex:0 0 auto;cursor:pointer;opacity:.72;font-size:11px;padding:0 1px;" + NOSEL;
 
-  // 展開區（佔整列、換到第二行；只在 🔍/⚙ 開啟時顯示）
+  // 兩排：① 握把＋本名＋⚙ ② 貢献度／線／判定
+  const row1 = document.createElement("div"); row1.style.cssText = "display:flex;align-items:center;gap:5px;white-space:nowrap";
+  const row2 = document.createElement("div"); row2.style.cssText = "display:flex;align-items:center;gap:4px;white-space:nowrap";
+  row1.append(grip, elName, spacer, menuBtn);
+  row2.append(elContrib, sep(), elLine, elVerdict);
+
+  // 展開選單（一顆 ⚙ 同時含：手動覆寫下拉 + 候選字串）
   const expand = document.createElement("div");
-  expand.style.cssText = "flex:0 0 100%;width:100%;white-space:normal;font-size:10px;opacity:.85;display:none;margin-top:3px;padding-top:4px;border-top:1px solid rgba(255,255,255,.14)";
-
-  // 覆寫下拉（建一次，避免每秒重畫關掉選單）
+  expand.style.cssText = "white-space:normal;font-size:10px;opacity:.9;display:none;margin-top:2px;padding-top:4px;border-top:1px solid rgba(255,255,255,.14);" + SEL;
   const ovrSel = document.createElement("select");
-  ovrSel.style.cssText = "max-width:170px;font:10px sans-serif;color:#f2eee2;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:5px;padding:1px 2px";
+  ovrSel.style.cssText = "max-width:158px;font:10px sans-serif;color:#f2eee2;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:5px;padding:1px 2px";
   ovrSel.innerHTML = '<option value="">自動</option>' + LINES.map((e, i) => `<option value="${i}">${e.key}</option>`).join("");
-  ovrSel.value = localStorage[LS_OVR] || "";
   ovrSel.addEventListener("change", () => { localStorage[LS_OVR] = ovrSel.value; tick(); });
+  const ovrWrap = document.createElement("div"); ovrWrap.style.cssText = "display:flex;align-items:center;gap:4px;" + NOSEL;
+  const ovrLbl = document.createElement("span"); ovrLbl.textContent = "本"; ovrLbl.style.opacity = ".7";
+  ovrWrap.append(ovrLbl, ovrSel);
+  const probeDiv = document.createElement("div"); probeDiv.style.cssText = "margin-top:4px;" + SEL;
+  expand.append(ovrWrap, probeDiv);
 
-  bar.append(grip, elName, sep(), elContrib, sep(), elLine, elVerdict, spacer, probeBtn, gearBtn, expand);
+  bar.append(row1, row2, expand);
   document.body.appendChild(bar);
 
-  let showProbe = false, showOvr = false;
-  probeBtn.addEventListener("click", (e) => { e.stopPropagation(); showProbe = !showProbe; if (showProbe) showOvr = false; tick(); });
-  gearBtn.addEventListener("click", (e) => { e.stopPropagation(); showOvr = !showOvr; if (showOvr) showProbe = false; tick(); });
+  let showPanel = false;
+  menuBtn.addEventListener("click", (e) => { e.stopPropagation(); showPanel = !showPanel; tick(); });
 
   /* ── 每秒更新內容（只改文字，不重建，避免關掉下拉/打斷拖曳）── */
   function tick() {
@@ -247,7 +254,7 @@
       elName.textContent = "認不出本"; elName.style.color = "#ffb454";
       elLine.textContent = ""; elVerdict.textContent = "";
     } else {
-      elName.textContent = raid.key + (ovr ? " ⚙" : ""); elName.style.color = "#f2eee2";
+      elName.textContent = raid.key + (ovr ? " ·手動" : ""); elName.style.color = "#f2eee2";
       if (raid.status === "none") { elLine.textContent = "無青箱"; elVerdict.textContent = ""; elVerdict.style.color = ""; }
       else if (raid.line == null) { elLine.textContent = raid.status === "unknown" ? "線:無資料" : "線:機率型"; elVerdict.textContent = ""; }
       else {
@@ -275,20 +282,15 @@
       }
     } else if (!wiped) { wipeShown = false; }
 
-    // 展開區
-    if (showProbe) {
-      const c = probeCandidates();
+    // 展開選單（一顆 ⚙）：手動覆寫下拉 + 候選字串（持久節點，只更新文字不重建）
+    if (showPanel) {
       expand.style.display = "block";
-      expand.innerHTML = `<div style="opacity:.6">探針 hash=${location.hash || "(無)"} mvp=${document.querySelector(".prt-mvp") ? "✓" : "✗"}</div>
-        <div style="opacity:.6;margin-top:2px">候選字串（複製回報）：</div>
-        <div style="margin-top:2px;word-break:break-all">${c.length ? c.map((x) => "「" + x + "」").join(" ") : "(空·非戰鬥畫面?)"}</div>`;
-    } else if (showOvr) {
-      expand.style.display = "block";
-      if (expand.firstChild !== ovrSel) { expand.innerHTML = ""; expand.appendChild(ovrSel); }
       ovrSel.value = localStorage[LS_OVR] || "";
+      const c = probeCandidates();
+      probeDiv.innerHTML = `<div style="opacity:.6">認不出本名時，複製候選字串回報：</div>
+        <div style="margin-top:2px;word-break:break-all">${c.length ? c.map((x) => "「" + x + "」").join(" ") : "(空·非戰鬥畫面?)"}</div>`;
     } else {
       expand.style.display = "none";
-      if (expand.contains(ovrSel)) expand.removeChild(ovrSel);
     }
     reposition();
   }

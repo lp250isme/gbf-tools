@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         碧藍幻想小工具
 // @namespace    https://gist.github.com/biuuu
-// @version      0.4.2
+// @version      0.4.3
 // @description  碧藍幻想瀏覽器輔助工具：隱藏滾動條、側邊欄、聊天室、救援清單雙欄(可開關)、自動選取下拉選單、保持 BGM 播放等
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       biuuu (原作), kv (修改)
@@ -39,12 +39,13 @@
   // 改用「縮 HP 長條(60px)+字 11px」達到同樣小尺寸，外觀幾乎一致但點擊正常。資訊全留。
   const TWO_COL_CSS =
     ".prt-raid-list{display:grid!important;grid-template-columns:repeat(2,1fr)!important;align-content:start!important;gap:4px!important;padding:4px!important}" +
-    ".prt-raid-list .lis-raid{position:relative!important;background:rgba(30,22,22,.55)!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;padding:4px 6px!important;margin:0!important;border-radius:6px;overflow:hidden;font-size:11px!important}" +
+    ".prt-raid-list .lis-raid{position:relative!important;background:rgba(30,22,22,.55)!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;padding:4px 6px!important;margin:0!important;border-radius:6px;overflow:hidden}" +
+    ".prt-raid-list .lis-raid *{font-size:10px!important}" +  /* 統一縮所有文字(蓋過本名 inline 12px 等),無 zoom→不破點擊 */
     ".prt-raid-list .lis-raid .prt-raid-gauge{width:60px!important;min-width:0!important}" +
     ".prt-raid-list .lis-raid .prt-use-ap{zoom:.72!important}" +  /* BP 紅點縮小(裝飾元素,非點擊目標,zoom 安全) */
     ".prt-raid-list .lis-raid .prt-raid-thumbnail{position:absolute!important;right:3px;bottom:3px;width:40px!important;height:auto!important;margin:0!important;z-index:1}" +
     ".prt-raid-list .lis-raid .img-raid-thumbnail{width:40px!important;height:auto!important}" +
-    ".prt-raid-list .lis-raid .prt-request-info{padding-right:46px!important}" +
+    ".prt-raid-list .lis-raid .prt-request-info{padding-right:46px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}" +
     ".prt-raid-list .lis-raid .txt-raid-name{width:auto!important}";
   const colStyle = document.createElement("style");
   document.head.appendChild(colStyle);

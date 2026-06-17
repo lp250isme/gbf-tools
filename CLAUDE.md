@@ -11,6 +11,7 @@ core/        核心 UI 腳本
   shortcut-bar-glass.user.js 捷徑列(霜玻璃皮膚)
   shortcut-bar-native.user.js 捷徑列(GBF 原生 sprite 皮膚)
   gbf-translate.user.js      日→中即時翻譯(Google 預設/DeepL 選用)
+  gbf-ua-iphone.user.js      iPhone UA 偽裝(document-start+@grant none;只改客戶端 navigator,不改 HTTP header)
 notify/
   kv/   走 kv 推播中心 POST go.kvcc.me/api/notify
     gbf-done.user.js         打完了(#result_multi + .pop-rematch-fail)/全滅

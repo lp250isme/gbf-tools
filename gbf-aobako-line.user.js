@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         碧藍幻想 青箱線提示
 // @namespace    gbf-aobako-line
-// @version      0.9.1
+// @version      0.9.2
 // @description  多人戰鬥中即時顯示「你的貢献度 vs 此本青箱線」兩排原生風工具條(可拖、文字可複製)，過線標✅；過線/滅団(隊伍全空圖)可推手機提醒(選用·走自架推播中心)。貢献度讀 .prt-mvp 自己那列(class=player)；本名自動掃 .cnt-raid-stage 文字比對；單顆 ⚙ 選單＝手動覆寫本名／認不出時列候選字串複製校正。線資料逐王內建並標明估計/確定/無青箱/無資料 + 來源。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @match        *://game.granbluefantasy.jp/*
@@ -146,7 +146,7 @@
   function detectRaid() {
     if (detectCache.hash === location.hash && detectCache.entry !== undefined) return detectCache.entry;
     const root = battleRoot() || document.body;
-    const text = root.textContent || "";  // textContent 不觸發 reflow（innerText 會），hot path 零佈局成本
+    const text = root.innerText || root.textContent || "";  // innerText＝只取「可見」文字，排除隱藏的召喚石名等(textContent 會誤抓→認錯本)；認出後即快取、不再每幀掃
     let found = null;
     for (const { e, a } of ALIAS_PAIRS) { if (text.includes(a)) { found = e; break; } }
     if (found) detectCache = { hash: location.hash, entry: found };
@@ -207,7 +207,6 @@
   const elContrib = mkSpan("");
   const elLine = mkSpan("");
   const elVerdict = mkSpan("font-weight:700;");
-  const spacer = document.createElement("span"); spacer.style.cssText = "flex:1 1 auto;min-width:6px;";
 
   // 單一功能鈕 ⚙：GBF 原生 sprite 藥鈕（同捷徑列）＋白色齒輪 SVG，點開選單
   const NATIVE_BTN_BG = "url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIIAAAAwCAMAAADq31KxAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAACuUExURQAAACdWb769vL3HyrT4/VFvdDRGTDNkey1WaUxWWY2fpLLz9zBbb1CMpYPJ2YTZ75Tb+mektW2xwlubtXbA0ixQY2uQlB9LY1aGnSZUbDpwiUyBlgYGBTZHTxhIYxtJYztQVSQ6SCM7SyRNXyVBTyEyPB4qMgwODR4cGBlHYSIgISIqLiAeGiAgHhtKZUdpdkhxgEl6jC5uiixlfiVcdCZVaCNHVyE6RyAyPf///2ye7kkAAAAvdFJOUwABN0YYkcT06c1KD/j+/v78/v7+/vmYJvoD9/4+aA5FfqHC/vvA/mI1FFCvmYkHKebjBgAAAAFiS0dEOdcAlUAAAAAHdElNRQfqBhAMNCO0BUuaAAAAJXRFWHRkYXRlOmNyZWF0ZQAyMDI2LTA2LTE2VDEyOjI1OjIxKzAwOjAwkMK/twAAACV0RVh0ZGF0ZTptb2RpZnkAMjAyNi0wNi0xNlQxMjoyNToyMSswMDowMOGfBwsAAAAodEVYdGRhdGU6dGltZXN0YW1wADIwMjYtMDYtMTZUMTI6NTI6MzUrMDA6MDBFiAyjAAAB9UlEQVRYw82W7VbiMBCGI7tI1bQKJetKXV1NwIrrsm3Spvd/ZTtJ+in8bDO8M+fNzJRDnhNyAEIaXcy+edXsOxlqNr9cHP751CG4ur7pAG7mNIxu77zqNloeguv2CIIsuotWcehT8Wq9DtkPR3Af/IzWYe5dWbwK6dwQPFxm6+UGRhvPkedJnNBHQPh1WC79H0F9EIkMCHkKkngj81wC1sIchQd3pYTIckrIM00SWSv36QvruSTkN802ElOEvMivBHRiH2gBCK+wKkUlbVPaxZUTOK03U24rhwAE6rToBK4k7bxGcE9PR2fj1YVqzIwcQoEoZRAoKgJV6AgKH6GgNQJHi8KeAqBwkDXf3iLwWv4p+FcEBNUIbV96d+6uIyCUVty7ly0Czv7GOe8hIMkhMFMKCGti8rofHYKwg3o+dT2IBkGgCe6jQeCICKJsELTQSFkjQNmMdO/xdHXnAwQknQtCAVehaqNXDpqR541pwSyCriqbuluOmpHnrXUIWDoDhOpMELYWYddlE/1unPpEWoQXgwAvaLOJfjdOfZwO4Y1xffLpbvQ8et9dpUtASBkTpkNRpTkjD++v7hhQCOBzMAh7xkocBiDg7AMQ0j9IDJZA7MnFU7rfAoPw/uUAP1FwDT9TQv7eP759cMa8/3fisOn2c5/+ByVhGRzVoc9cAAAAAElFTkSuQmCC') 0 0 / 100% 100% no-repeat";
@@ -215,13 +214,21 @@
   menuBtn.className = "aobako-btn";
   menuBtn.title = "選單：手動覆寫本名／認不出時列候選字串複製";
   menuBtn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="rgba(215,235,247,.95)"><path d="M19.4 13c.04-.32.06-.66.06-1s-.02-.68-.07-1l2.11-1.63a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.3 7.3 0 0 0-1.73-1l-.38-2.65A.49.49 0 0 0 14 1h-4a.49.49 0 0 0-.49.42l-.38 2.65c-.63.25-1.2.59-1.73 1l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.64L4.57 11c-.05.32-.07.66-.07 1s.02.68.07 1l-2.11 1.63a.5.5 0 0 0-.12.64l2 3.46c.14.24.42.31.61.22l2.49-1c.53.41 1.1.75 1.73 1l.38 2.65c.05.24.25.42.49.42h4c.24 0 .45-.18.49-.42l.38-2.65c.63-.25 1.2-.59 1.73-1l2.49 1c.19.09.47.02.61-.22l2-3.46a.5.5 0 0 0-.12-.64L19.4 13zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg>';
-  menuBtn.style.cssText = "flex:0 0 auto;box-sizing:border-box;width:24px;height:18px;display:flex;align-items:center;justify-content:center;background:" + NATIVE_BTN_BG + ";border:none;border-radius:5px;box-shadow:0 1px 2px rgba(0,0,0,.4);cursor:pointer;" + NOSEL;
+  menuBtn.style.cssText = "flex:0 0 auto;box-sizing:border-box;width:20px;height:20px;display:flex;align-items:center;justify-content:center;background:" + NATIVE_BTN_BG + ";border:none;border-radius:5px;box-shadow:0 1px 2px rgba(0,0,0,.4);cursor:pointer;" + NOSEL;
 
-  // 兩排：① 握把＋本名＋⚙ ② 貢献度／線／判定
-  const row1 = document.createElement("div"); row1.style.cssText = "display:flex;align-items:center;gap:5px;white-space:nowrap";
-  const row2 = document.createElement("div"); row2.style.cssText = "display:flex;align-items:center;gap:4px;white-space:nowrap";
-  row1.append(grip, elName, spacer, menuBtn);
-  row2.append(elContrib, sep(), elLine, elVerdict);
+  // 左欄（握把＋⚙ 直立堆疊）＋ 右欄（本名／數值 兩排，左對齊）
+  const ctrlCol = document.createElement("div");
+  ctrlCol.style.cssText = "display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex:0 0 auto";
+  ctrlCol.append(grip, menuBtn);
+  const statsRow = document.createElement("div");
+  statsRow.style.cssText = "display:flex;align-items:center;gap:4px;white-space:nowrap";
+  statsRow.append(elContrib, sep(), elLine, elVerdict);
+  const textCol = document.createElement("div");
+  textCol.style.cssText = "display:flex;flex-direction:column;gap:1px;min-width:0";
+  textCol.append(elName, statsRow);
+  const topRow = document.createElement("div");
+  topRow.style.cssText = "display:flex;align-items:center;gap:7px;white-space:nowrap";
+  topRow.append(ctrlCol, textCol);
 
   // 展開選單（一顆 ⚙ 同時含：手動覆寫下拉 + 候選字串）
   const expand = document.createElement("div");
@@ -236,7 +243,7 @@
   const probeDiv = document.createElement("div"); probeDiv.style.cssText = "margin-top:4px;" + SEL;
   expand.append(ovrWrap, probeDiv);
 
-  bar.append(row1, row2, expand);
+  bar.append(topRow, expand);
   document.body.appendChild(bar);
 
   let showPanel = false;

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         碧藍幻想 青箱線提示
 // @namespace    gbf-aobako-line
-// @version      0.8.5
+// @version      0.8.6
 // @description  多人戰鬥中即時顯示「你的貢献度 vs 此本青箱線」單列原生風工具條，過線標✅；過線/滅団可推手機提醒(選用·走自架推播中心)。貢献度讀 .prt-mvp 自己那列(class=player)；本名自動掃 .cnt-raid-stage 文字比對(認不出點🔍列候選字串，免 console)；⚙手動覆寫。線資料逐王內建並標明估計/確定/無青箱/無資料 + 來源。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @match        *://game.granbluefantasy.jp/*
@@ -35,14 +35,21 @@
   let notifiedHash = ""; // 已推過「過線」的戰鬥 hash（每場只推一次）
   let wipeShown = false, lastWipeAt = 0; // 滅団：邊緣觸發 + 冷卻，防 display 抖動/換頁連推
 
-  // 滅団偵測：全滅當下「自動」跳出的応援彈窗 .pop-cheer（display:block / pop-show）。
-  //   不用復活鈕 .btn-revival——那要先把這個応援彈窗按掉才出現，掛機根本偵測不到。
-  //   用 inline/computed display 判（彈窗多為 fixed，不能靠 offsetParent）。
+  function isVisible(el) {
+    if (!el) return false;
+    const r = el.getBoundingClientRect();
+    if (r.width <= 0 || r.height <= 0) return false;
+    const s = getComputedStyle(el);
+    return s.display !== "none" && s.visibility !== "hidden" && +s.opacity !== 0;
+  }
+  const dispOn = (el) => { const d = el.style.display || getComputedStyle(el).display; return d !== "none"; };
+  // 滅団偵測：全滅流程的共通訊號鏈，任一出現即翻車（靠 60s 冷卻保證一場只推一次）。
+  //   ① 応援彈窗 .pop-cheer（全滅自動跳）② 復活鈕 .btn-revival（按掉応援後）③ 全滅文字 .txt-lose/.prt-lose
+  //   不用 .prt-tips-box——那是「通用載入提示框」(進每場本都跳)，會每場誤推。
   function isWiped() {
-    for (const el of document.querySelectorAll(".pop-cheer")) {
-      const d = el.style.display || getComputedStyle(el).display;
-      if (d !== "none") return true;
-    }
+    for (const el of document.querySelectorAll(".pop-cheer")) if (dispOn(el)) return true;
+    for (const el of document.querySelectorAll(".btn-revival")) if (dispOn(el)) return true;
+    for (const el of document.querySelectorAll(".txt-lose, .prt-lose")) if (isVisible(el) && /全滅/.test(el.textContent || "")) return true;
     return false;
   }
 
@@ -268,7 +275,7 @@
     // 滅団：敗北彈窗出現→推一次（續關後再翻會再推；不需認出本名也推）
     const wiped = isWiped();
     if (wiped) {
-      if (!wipeShown && Date.now() - lastWipeAt > 5000) {   // 邊緣 + 5s 冷卻：抖動/換頁重觸發也只推一次
+      if (!wipeShown && Date.now() - lastWipeAt > 60000) {  // 邊緣 + 60s 冷卻：整段滅団流程(応援→載入→結果)一場只推一次
         wipeShown = true; lastWipeAt = Date.now();
         notify({ title: "💀 滅団", subtitle: "🐉 " + (raid ? raid.key : "多人本"),
           body: (contrib != null ? "貢 " + fmtMan(contrib) + " · " : "") + "全滅了，快回來" });

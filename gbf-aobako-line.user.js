@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         碧藍幻想 青箱線提示
 // @namespace    gbf-aobako-line
-// @version      0.8.3
+// @version      0.8.4
 // @description  多人戰鬥中即時顯示「你的貢献度 vs 此本青箱線」單列原生風工具條，過線標✅；過線/滅団可推手機提醒(選用·走自架推播中心)。貢献度讀 .prt-mvp 自己那列(class=player)；本名自動掃 .cnt-raid-stage 文字比對(認不出點🔍列候選字串，免 console)；⚙手動覆寫。線資料逐王內建並標明估計/確定/無青箱/無資料 + 來源。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @match        *://game.granbluefantasy.jp/*
@@ -33,7 +33,7 @@
     } catch {}
   }
   let notifiedHash = ""; // 已推過「過線」的戰鬥 hash（每場只推一次）
-  let wipeShown = false; // 滅団彈窗是否正顯示中（邊緣觸發：隱藏→顯示才推一次）
+  let wipeShown = false, lastWipeAt = 0; // 滅団：邊緣觸發 + 冷卻，防 display 抖動/換頁連推
 
   // 可見性判斷：吃得了 position:fixed（offsetParent 對 fixed 永遠 null，不能用它判）。
   function isVisible(el) {
@@ -279,11 +279,13 @@
 
     // 滅団：敗北彈窗出現→推一次（續關後再翻會再推；不需認出本名也推）
     const wiped = isWiped();
-    if (wiped && !wipeShown) {
-      wipeShown = true;
-      notify({ title: "💀 滅団", subtitle: "🐉 " + (raid ? raid.key : "多人本"),
-        body: (contrib != null ? "貢 " + fmtMan(contrib) + " · " : "") + "全滅了，快回來" });
-    } else if (!wiped) { wipeShown = false; }
+    if (wiped) {
+      if (!wipeShown && Date.now() - lastWipeAt > 5000) {   // 邊緣 + 5s 冷卻：抖動/換頁重觸發也只推一次
+        wipeShown = true; lastWipeAt = Date.now();
+        notify({ title: "💀 滅団", subtitle: "🐉 " + (raid ? raid.key : "多人本"),
+          body: (contrib != null ? "貢 " + fmtMan(contrib) + " · " : "") + "全滅了，快回來" });
+      }
+    } else { wipeShown = false; }
 
     // 展開區
     if (showProbe) {
@@ -343,7 +345,7 @@
   });
 
   setInterval(tick, 1000);
-  window.addEventListener("hashchange", () => { detectCache = { hash: "", entry: undefined }; notifiedHash = ""; wipeShown = false; tick(); });
+  window.addEventListener("hashchange", () => { detectCache = { hash: "", entry: undefined }; notifiedHash = ""; tick(); });
   addEventListener("resize", () => { if (!dragging) reposition(); }, { passive: true });
   tick();
 })();

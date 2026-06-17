@@ -98,6 +98,21 @@ Use the menu under **Tampermonkey icon → that script** — **no code editing n
 
 > ⚠ **Public-repo safety**: keep all tokens/keys/Bark keys only in your **local userscript manager** (or set via the menu, stored locally). **Never** commit a version containing real values back to the repo.
 
+## 💡 Make a desktop browser look like a phone (mobile UA)
+
+Some GBF behaviors are gated **server-side by the request `User-Agent` header** (mobile vs desktop): mobile tap handling, the quantity (`num-set`) select that often "closes the instant you open it" on desktop, some mobile layouts. A desktop browser is treated as PC and hits these.
+
+**Why isn't there a script for this here?** A userscript can only override the **client-side `navigator.userAgent`** (what JS reads); it **cannot change the request UA header** the browser sends for the document (decided before any script runs). Since GBF decides server-side, a script can't spoof it — confirmed by testing. This needs a **header-changing browser extension**.
+
+**How:**
+
+1. Install [User-Agent Switcher and Manager](https://chromewebstore.google.com/detail/user-agent-switcher-and-m/bhchdcejhohfmigjafbampogmaanbfkg)
+2. Pick the **Chrome 51.0.2704.104 / iOS 9.3.2** preset (confirmed working with GBF):
+   ```
+   Mozilla/5.0 (iPhone; CPU iPhone OS 9_3_2 like Mac OS X) AppleWebKit/601.1 (KHTML, like Gecko) CriOS/51.0.2704.104 Mobile/13F69 Safari/601.1.46
+   ```
+3. Apply it **per-site to `game.granbluefantasy.jp`** so other sites aren't affected.
+
 ## License
 
 Open-sourced in the spirit of the original; see [LICENSE](LICENSE).

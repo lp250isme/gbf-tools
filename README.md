@@ -98,6 +98,21 @@
 
 > ⚠ **公開 repo 安全**：所有 token／key／Bark key 只在你**本機的腳本管理器**裡填（或用選單設定，存在本機），**切勿**把含真實值的版本提交回 repo。
 
+## 💡 把桌機瀏覽器當成手機（行動版 UA）
+
+GBF 有些行為是**伺服器端依請求的 `User-Agent` header** 判斷「行動 vs 桌機」的，例如：行動版的點擊（tap）處理、數量（`num-set`）選單在桌機常「一開就被關掉」、部分行動版排版。桌機瀏覽器預設被當 PC，就會踩到這些。
+
+**為什麼本 repo 沒有對應腳本？** userscript 只能改**客戶端的 `navigator.userAgent`**（JS 讀的值），**無法改主文件送出的請求 UA header**（那在頁面載入前就決定，比任何腳本都早）。GBF 既然是伺服器端判斷，腳本騙不到——實測確認過。所以這件事**只能靠會改 header 的瀏覽器擴充**。
+
+**做法**：
+
+1. 裝 [User-Agent Switcher and Manager](https://chromewebstore.google.com/detail/user-agent-switcher-and-m/bhchdcejhohfmigjafbampogmaanbfkg)
+2. 選 **Chrome 51.0.2704.104 / iOS 9.3.2** 這個 preset（實測 GBF 吃這條）：
+   ```
+   Mozilla/5.0 (iPhone; CPU iPhone OS 9_3_2 like Mac OS X) AppleWebKit/601.1 (KHTML, like Gecko) CriOS/51.0.2704.104 Mobile/13F69 Safari/601.1.46
+   ```
+3. 建議設成**只對 `game.granbluefantasy.jp` 套用**（per-site），不影響其他網站。
+
 ## 授權
 
 延續原作精神開源；詳見 [LICENSE](LICENSE)。

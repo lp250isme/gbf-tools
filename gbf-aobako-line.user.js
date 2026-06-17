@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         碧藍幻想 青箱線提示
 // @namespace    gbf-aobako-line
-// @version      0.7.1
-// @description  多人戰鬥中即時顯示「你的貢献度 vs 此本青箱線」單列原生風工具條，過線標✅並可推 Bark 手機提醒(選用)。貢献度讀 .prt-mvp 自己那列(class=player)；本名自動掃 .cnt-raid-stage 文字比對(認不出點🔍列候選字串，免 console)；⚙手動覆寫。線資料逐王內建並標明估計/確定/無青箱/無資料 + 來源。
+// @version      0.8.0
+// @description  多人戰鬥中即時顯示「你的貢献度 vs 此本青箱線」單列原生風工具條，過線標✅；過線/滅団可推手機提醒(選用·走自架推播中心)。貢献度讀 .prt-mvp 自己那列(class=player)；本名自動掃 .cnt-raid-stage 文字比對(認不出點🔍列候選字串，免 console)；⚙手動覆寫。線資料逐王內建並標明估計/確定/無青箱/無資料 + 來源。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @match        *://game.granbluefantasy.jp/*
 // @match        *://gbf.game.mbga.jp/*
@@ -32,7 +32,17 @@
       });
     } catch {}
   }
-  let notifiedHash = ""; // 已推過的戰鬥 hash（每場只推一次）
+  let notifiedHash = ""; // 已推過「過線」的戰鬥 hash（每場只推一次）
+  let wipeShown = false; // 滅団彈窗是否正顯示中（邊緣觸發：隱藏→顯示才推一次）
+
+  // 滅団偵測：有「可見的」敗北/コンティニュー彈窗 .pop-continue*（JS 動態生成；隱藏時 offsetParent 為 null）
+  function isWiped() {
+    const els = document.querySelectorAll('[class*="pop-continue"]');
+    for (const el of els) {
+      if (el.offsetParent !== null && el.getBoundingClientRect().height > 4) return true;
+    }
+    return false;
+  }
 
   /* ─────────────────────────────────────────────────────────
    * 青箱線資料表（單位：貢献度原始點數 pt；萬＝10000pt）逐王。
@@ -253,6 +263,14 @@
       }
     }
 
+    // 滅団：敗北彈窗出現→推一次（續關後再翻會再推；不需認出本名也推）
+    const wiped = isWiped();
+    if (wiped && !wipeShown) {
+      wipeShown = true;
+      notify({ title: "💀 滅団", subtitle: "🐉 " + (raid ? raid.key : "多人本"),
+        body: (contrib != null ? "貢 " + fmtMan(contrib) + " · " : "") + "全滅了，快回來" });
+    } else if (!wiped) { wipeShown = false; }
+
     // 展開區
     if (showProbe) {
       const c = probeCandidates();
@@ -311,7 +329,7 @@
   });
 
   setInterval(tick, 1000);
-  window.addEventListener("hashchange", () => { detectCache = { hash: "", entry: undefined }; notifiedHash = ""; tick(); });
+  window.addEventListener("hashchange", () => { detectCache = { hash: "", entry: undefined }; notifiedHash = ""; wipeShown = false; tick(); });
   addEventListener("resize", () => { if (!dragging) reposition(); }, { passive: true });
   tick();
 })();

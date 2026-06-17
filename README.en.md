@@ -23,7 +23,7 @@ Then open the `.user.js` you want and click **Raw** — the manager will prompt 
 | `core/shortcut-bar-glass.user.js` | **Shortcut bar** (frosted-glass look): floating bar of custom buttons, optional cloud sync |
 | `core/shortcut-bar-native.user.js` | Shortcut bar (GBF native button look); install one or the other |
 &
-| `core/gbf-ua-iphone.user.js` | **iPhone UA spoof**: makes navigator look like an iPhone (iOS 26) for client-side UA checks |
+| `core/gbf-ua-iphone.user.js` | **iPhone UA spoof**: makes navigator look like an iPhone (iOS preset) for client-side UA checks |
 | `notify/kv/` ・ `notify/bark/` | **Push scripts** (blue-chest line / battle done / wipe / energy); split by push channel, see below |
 
 ---

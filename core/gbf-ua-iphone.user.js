@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         碧藍幻想 iPhone UA 偽裝
 // @namespace    gbf-ua-iphone
-// @version      1.0.0
-// @description  把 navigator 偽裝成 iPhone（iOS 26 Safari，相當於 iPhone 17 Pro Max 世代），讓 GBF 的「前端 JS UA 判斷」當作行動裝置處理（如行動版 tap、num-set 選單）。⚠ 只改客戶端 navigator，不改 HTTP 請求 UA header；伺服器端依 UA 給的內容不受影響。
+// @version      1.1.0
+// @description  把 navigator 偽裝成 iPhone（與 UA 切換擴充同款 preset：iOS 9.3.2 / Chrome-iOS），讓 GBF 的「前端 JS UA 判斷」當作行動裝置處理（如行動版 tap、num-set 選單）。⚠ 只改客戶端 navigator，不改 HTTP 請求 UA header；若 GBF 是伺服器端依 UA 給內容，仍須用會改 header 的瀏覽器擴充。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       kv
 // @match        *://game.granbluefantasy.jp/*
@@ -15,9 +15,9 @@
 (function () {
   "use strict";
 
-  // iPhone 17 Pro Max 世代＝iOS 26。UA 不含機型，只有 iPhone + iOS 版本。
-  // 想換版本改這行即可（例：18_0 / Version/18.0）。
-  const UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1";
+  // 與 UA 切換擴充同款 preset（iOS 9.3.2 / Chrome-iOS，CriOS）——已知 GBF 吃這條。
+  // 想換成現代 iOS Safari：Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1
+  const UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 9_3_2 like Mac OS X) AppleWebKit/601.1 (KHTML, like Gecko) CriOS/51.0.2704.104 Mobile/13F69 Safari/601.1.46";
 
   const def = (obj, prop, value) => {
     try { Object.defineProperty(obj, prop, { get: () => value, configurable: true }); } catch (e) {}

@@ -1,32 +1,36 @@
 // ==UserScript==
 // @name         碧藍幻想 青箱線提示
 // @namespace    gbf-aobako-line
-// @version      0.7.0
+// @version      0.7.1
 // @description  多人戰鬥中即時顯示「你的貢献度 vs 此本青箱線」單列原生風工具條，過線標✅並可推 Bark 手機提醒(選用)。貢献度讀 .prt-mvp 自己那列(class=player)；本名自動掃 .cnt-raid-stage 文字比對(認不出點🔍列候選字串，免 console)；⚙手動覆寫。線資料逐王內建並標明估計/確定/無青箱/無資料 + 來源。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @match        *://game.granbluefantasy.jp/*
 // @match        *://gbf.game.mbga.jp/*
 // @run-at       document-idle
 // @grant        GM_xmlhttpRequest
-// @connect      api.day.app
+// @connect      go.kvcc.me
 // ==/UserScript==
 (function () {
   "use strict";
   if (window.__aobakoLine) return; window.__aobakoLine = true;
 
   /* ─────────────────────────────────────
-   * 過線推播（選用）。BARK_KEY 留空＝只顯示、不推任何東西。
-   * 取得：手機裝 Bark App，複製首頁那串 device key 填這裡。
-   * ⚠ 本檔在公開 repo，真實 key 只在你本機腳本管理器裡填，勿提交回來。
+   * 過線推播（選用）走自架推播中心 /api/notify（同 Codex/三CLI hook 那支）。
+   * NOTIFY_TOKEN 留空＝只顯示、不推。瀏覽器讀不到本機 token 檔，需手填。
+   * ⚠ 本檔在公開 repo，真實 token 只在你本機腳本管理器裡填，勿提交回來。
+   * 後台契約：POST JSON { token, title, subtitle, body, group, sound, icon }。
    * ───────────────────────────────────── */
-  const BARK_KEY = "";  // 例：abcdEFGH1234...
-  const BARK_ICON = "https://game.granbluefantasy.jp/favicon.ico";
-  function notifyBark(title, body) {
-    if (!BARK_KEY) return;
-    const u = "https://api.day.app/" + encodeURIComponent(BARK_KEY) +
-      "/" + encodeURIComponent(title) + "/" + encodeURIComponent(body) +
-      "?group=GBF&icon=" + encodeURIComponent(BARK_ICON);
-    try { GM_xmlhttpRequest({ method: "GET", url: u }); } catch {}
+  const NOTIFY_API   = "https://go.kvcc.me/api/notify";
+  const NOTIFY_TOKEN = "";  // 你的推播中心 token（本機填，勿提交回 repo）
+  const NOTIFY_ICON  = "https://game.granbluefantasy.jp/favicon.ico"; // 想要品牌 icon 可換 go.kvcc.me/icon-gbf.png
+  function notify(o) {
+    if (!NOTIFY_TOKEN) return;
+    try {
+      GM_xmlhttpRequest({
+        method: "POST", url: NOTIFY_API, headers: { "Content-Type": "application/json" },
+        data: JSON.stringify(Object.assign({ token: NOTIFY_TOKEN, group: "GBF", sound: "glass", icon: NOTIFY_ICON }, o)),
+      });
+    } catch {}
   }
   let notifiedHash = ""; // 已推過的戰鬥 hash（每場只推一次）
 
@@ -241,9 +245,9 @@
           const over = contrib >= raid.line, diff = Math.abs(contrib - raid.line);
           elVerdict.textContent = over ? "✅+" + fmtMan(diff) : "差 " + fmtMan(diff);
           elVerdict.style.color = over ? "#7ee29a" : "#ffb454";
-          if (over && notifiedHash !== location.hash) {   // 剛跨線：每場推一次 Bark
+          if (over && notifiedHash !== location.hash) {   // 剛跨線：每場推一次
             notifiedHash = location.hash;
-            notifyBark("🔵 青箱線突破·" + raid.key, "貢 " + fmtMan(contrib) + " / 線 " + fmtMan(raid.line));
+            notify({ title: "🔵 青箱線突破", subtitle: "🐉 " + raid.key, body: "貢 " + fmtMan(contrib) + " / 線 " + fmtMan(raid.line) });
           }
         } else { elVerdict.textContent = ""; }
       }

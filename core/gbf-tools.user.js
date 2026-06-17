@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         碧藍幻想小工具
 // @namespace    https://gist.github.com/biuuu
-// @version      0.3.1
+// @version      0.3.2
 // @description  碧藍幻想瀏覽器輔助工具：隱藏滾動條、側邊欄、聊天室、救援清單雙欄(可開關)、自動選取下拉選單、保持 BGM 播放等
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       biuuu (原作), kv (修改)
@@ -35,12 +35,14 @@
 
   /* 救援/搜尋清單雙欄（可從腳本選單開關，預設關）。不隱藏任何資訊。 */
   const PREF_2COL = "gbfTwoCol";
-  // 雙欄精簡：grid 強制兩欄；拿掉縮圖與固定 banner 底圖→卡片縮成「文字內容」大小，
-  // 故只需輕量 zoom(.85) 兩張就並排、字也大得多(不像整卡 zoom .5 那麼小)。資訊全留。
+  // 雙欄精簡：grid 強制兩欄；拿掉固定 banner 底圖→卡片縮成「文字內容」大小，輕量 zoom(.7) 兩張並排、字大。
+  // 縮圖不拿掉，改縮小絕對定位釘右下角(不佔文字寬度)。資訊全留。
   const TWO_COL_CSS =
     ".prt-raid-list{display:grid!important;grid-template-columns:repeat(2,1fr)!important;align-content:start!important;gap:4px!important;padding:4px!important}" +
-    ".prt-raid-list .lis-raid{background:rgba(30,22,22,.55)!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;padding:4px 6px!important;margin:0!important;border-radius:6px;overflow:hidden;zoom:.7}" +
-    ".prt-raid-list .lis-raid .prt-raid-thumbnail{display:none!important}" +
+    ".prt-raid-list .lis-raid{position:relative!important;background:rgba(30,22,22,.55)!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;padding:4px 6px!important;margin:0!important;border-radius:6px;overflow:hidden;zoom:.7}" +
+    ".prt-raid-list .lis-raid .prt-raid-thumbnail{position:absolute!important;right:3px;bottom:3px;width:40px!important;height:auto!important;margin:0!important;z-index:1}" +
+    ".prt-raid-list .lis-raid .img-raid-thumbnail{width:40px!important;height:auto!important}" +
+    ".prt-raid-list .lis-raid .prt-request-info{padding-right:46px!important}" +
     ".prt-raid-list .lis-raid .txt-raid-name{width:auto!important}";
   const colStyle = document.createElement("style");
   document.head.appendChild(colStyle);

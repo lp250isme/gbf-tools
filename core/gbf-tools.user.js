@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         碧藍幻想小工具
 // @namespace    https://gist.github.com/biuuu
-// @version      0.3.5
+// @version      0.3.6
 // @description  碧藍幻想瀏覽器輔助工具：隱藏滾動條、側邊欄、聊天室、救援清單雙欄(可開關)、自動選取下拉選單、保持 BGM 播放等
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       biuuu (原作), kv (修改)
@@ -40,7 +40,9 @@
   const TWO_COL_CSS =
     ".prt-raid-list{display:grid!important;grid-template-columns:repeat(2,1fr)!important;align-content:start!important;gap:4px!important;padding:4px!important}" +
     ".prt-raid-list .lis-raid{position:relative!important;background-size:100% 100%!important;background-repeat:no-repeat!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;padding:4px 6px!important;margin:0!important;overflow:hidden;zoom:.7}" +
-    ".prt-raid-list .lis-raid .prt-raid-thumbnail{display:none!important}" +
+    ".prt-raid-list .lis-raid .prt-raid-thumbnail{position:absolute!important;right:4px;bottom:4px;width:32px!important;height:32px!important;min-width:0!important;margin:0!important;padding:0!important;background:none!important;overflow:hidden!important;border-radius:4px;z-index:2}" +
+    ".prt-raid-list .lis-raid .prt-raid-thumbnail .img-raid-thumbnail{position:static!important;width:32px!important;height:32px!important;min-width:0!important;object-fit:cover!important;margin:0!important}" +
+    ".prt-raid-list .lis-raid .prt-request-info{padding-right:42px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}" +
     ".prt-raid-list .lis-raid .txt-raid-name{width:auto!important}";
   const colStyle = document.createElement("style");
   document.head.appendChild(colStyle);

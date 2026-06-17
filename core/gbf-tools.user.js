@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         碧藍幻想小工具
 // @namespace    https://gist.github.com/biuuu
-// @version      0.3.0
+// @version      0.3.1
 // @description  碧藍幻想瀏覽器輔助工具：隱藏滾動條、側邊欄、聊天室、救援清單雙欄(可開關)、自動選取下拉選單、保持 BGM 播放等
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       biuuu (原作), kv (修改)
@@ -39,12 +39,12 @@
   // 故只需輕量 zoom(.85) 兩張就並排、字也大得多(不像整卡 zoom .5 那麼小)。資訊全留。
   const TWO_COL_CSS =
     ".prt-raid-list{display:grid!important;grid-template-columns:repeat(2,1fr)!important;align-content:start!important;gap:4px!important;padding:4px!important}" +
-    ".prt-raid-list .lis-raid{background:rgba(30,22,22,.55)!important;width:auto!important;height:auto!important;min-height:0!important;padding:4px 6px!important;margin:0!important;border-radius:6px;zoom:.85}" +
+    ".prt-raid-list .lis-raid{background:rgba(30,22,22,.55)!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;padding:4px 6px!important;margin:0!important;border-radius:6px;overflow:hidden;zoom:.7}" +
     ".prt-raid-list .lis-raid .prt-raid-thumbnail{display:none!important}" +
     ".prt-raid-list .lis-raid .txt-raid-name{width:auto!important}";
   const colStyle = document.createElement("style");
   document.head.appendChild(colStyle);
-  const applyTwoCol = () => { colStyle.textContent = GM_getValue(PREF_2COL, true) ? TWO_COL_CSS : ""; };
+  const applyTwoCol = () => { colStyle.textContent = GM_getValue(PREF_2COL, false) ? TWO_COL_CSS : ""; };
   applyTwoCol();
 
   /* ─────────────────────────────────────
@@ -133,7 +133,7 @@
     let menuId;
     const buildMenu = () => {
       if (menuId != null && typeof GM_unregisterMenuCommand === "function") { try { GM_unregisterMenuCommand(menuId); } catch (e) {} }
-      const on = GM_getValue(PREF_2COL, true);
+      const on = GM_getValue(PREF_2COL, false);
       menuId = GM_registerMenuCommand((on ? "✅ 救援清單雙欄：開" : "⬜ 救援清單雙欄：關"),
         () => { GM_setValue(PREF_2COL, !on); applyTwoCol(); buildMenu(); });
     };

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         碧藍幻想 青箱線提示
 // @namespace    gbf-aobako-line
-// @version      0.8.6
+// @version      0.8.7
 // @description  多人戰鬥中即時顯示「你的貢献度 vs 此本青箱線」單列原生風工具條，過線標✅；過線/滅団可推手機提醒(選用·走自架推播中心)。貢献度讀 .prt-mvp 自己那列(class=player)；本名自動掃 .cnt-raid-stage 文字比對(認不出點🔍列候選字串，免 console)；⚙手動覆寫。線資料逐王內建並標明估計/確定/無青箱/無資料 + 來源。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @match        *://game.granbluefantasy.jp/*
@@ -33,24 +33,16 @@
     } catch {}
   }
   let notifiedHash = ""; // 已推過「過線」的戰鬥 hash（每場只推一次）
-  let wipeShown = false, lastWipeAt = 0; // 滅団：邊緣觸發 + 冷卻，防 display 抖動/換頁連推
+  let wipeShown = false, lastWipeAt = 0, wipeStreak = 0; // 滅団：邊緣+冷卻+2tick去抖
 
-  function isVisible(el) {
-    if (!el) return false;
-    const r = el.getBoundingClientRect();
-    if (r.width <= 0 || r.height <= 0) return false;
-    const s = getComputedStyle(el);
-    return s.display !== "none" && s.visibility !== "hidden" && +s.opacity !== 0;
-  }
-  const dispOn = (el) => { const d = el.style.display || getComputedStyle(el).display; return d !== "none"; };
-  // 滅団偵測：全滅流程的共通訊號鏈，任一出現即翻車（靠 60s 冷卻保證一場只推一次）。
-  //   ① 応援彈窗 .pop-cheer（全滅自動跳）② 復活鈕 .btn-revival（按掉応援後）③ 全滅文字 .txt-lose/.prt-lose
-  //   不用 .prt-tips-box——那是「通用載入提示框」(進每場本都跳)，會每場誤推。
+  // 滅団偵測：隊伍前衛全部死光＝每個頭像都變空圖 3999999999.jpg（實測 DOM）。
+  //   這是戰鬥中真實隊伍狀態，不靠彈窗/手動，變體都通用。
+  //   任一成員不是空圖＝還有人活＝沒翻；沒有成員(非戰鬥)＝沒翻。
   function isWiped() {
-    for (const el of document.querySelectorAll(".pop-cheer")) if (dispOn(el)) return true;
-    for (const el of document.querySelectorAll(".btn-revival")) if (dispOn(el)) return true;
-    for (const el of document.querySelectorAll(".txt-lose, .prt-lose")) if (isVisible(el) && /全滅/.test(el.textContent || "")) return true;
-    return false;
+    const imgs = document.querySelectorAll(".prt-member .img-chara-command");
+    if (!imgs.length) return false;
+    for (const im of imgs) if (!/3999999999/.test(im.getAttribute("src") || "")) return false;
+    return true;
   }
 
   /* ─────────────────────────────────────────────────────────
@@ -274,13 +266,14 @@
 
     // 滅団：敗北彈窗出現→推一次（續關後再翻會再推；不需認出本名也推）
     const wiped = isWiped();
-    if (wiped) {
-      if (!wipeShown && Date.now() - lastWipeAt > 60000) {  // 邊緣 + 60s 冷卻：整段滅団流程(応援→載入→結果)一場只推一次
+    wipeStreak = wiped ? wipeStreak + 1 : 0;
+    if (wipeStreak >= 2) {                                   // 連 2 tick 全滅才算（避開開場載入瞬間的空圖）
+      if (!wipeShown && Date.now() - lastWipeAt > 60000) {   // 邊緣 + 60s 冷卻：一場只推一次
         wipeShown = true; lastWipeAt = Date.now();
         notify({ title: "💀 滅団", subtitle: "🐉 " + (raid ? raid.key : "多人本"),
           body: (contrib != null ? "貢 " + fmtMan(contrib) + " · " : "") + "全滅了，快回來" });
       }
-    } else { wipeShown = false; }
+    } else if (!wiped) { wipeShown = false; }
 
     // 展開區
     if (showProbe) {

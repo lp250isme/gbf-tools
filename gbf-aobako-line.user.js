@@ -1,17 +1,34 @@
 // ==UserScript==
 // @name         碧藍幻想 青箱線提示
 // @namespace    gbf-aobako-line
-// @version      0.6.1
-// @description  多人戰鬥中即時顯示「你的貢献度 vs 此本青箱線」單列原生風工具條，過線標✅。貢献度讀 .prt-mvp 自己那列(class=player)；本名自動掃 .cnt-raid-stage 文字比對(認不出點🔍列候選字串，免 console)；⚙手動覆寫。線資料逐王內建並標明估計/確定/無青箱/無資料 + 來源。
+// @version      0.7.0
+// @description  多人戰鬥中即時顯示「你的貢献度 vs 此本青箱線」單列原生風工具條，過線標✅並可推 Bark 手機提醒(選用)。貢献度讀 .prt-mvp 自己那列(class=player)；本名自動掃 .cnt-raid-stage 文字比對(認不出點🔍列候選字串，免 console)；⚙手動覆寫。線資料逐王內建並標明估計/確定/無青箱/無資料 + 來源。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @match        *://game.granbluefantasy.jp/*
 // @match        *://gbf.game.mbga.jp/*
 // @run-at       document-idle
-// @grant        none
+// @grant        GM_xmlhttpRequest
+// @connect      api.day.app
 // ==/UserScript==
 (function () {
   "use strict";
   if (window.__aobakoLine) return; window.__aobakoLine = true;
+
+  /* ─────────────────────────────────────
+   * 過線推播（選用）。BARK_KEY 留空＝只顯示、不推任何東西。
+   * 取得：手機裝 Bark App，複製首頁那串 device key 填這裡。
+   * ⚠ 本檔在公開 repo，真實 key 只在你本機腳本管理器裡填，勿提交回來。
+   * ───────────────────────────────────── */
+  const BARK_KEY = "";  // 例：abcdEFGH1234...
+  const BARK_ICON = "https://game.granbluefantasy.jp/favicon.ico";
+  function notifyBark(title, body) {
+    if (!BARK_KEY) return;
+    const u = "https://api.day.app/" + encodeURIComponent(BARK_KEY) +
+      "/" + encodeURIComponent(title) + "/" + encodeURIComponent(body) +
+      "?group=GBF&icon=" + encodeURIComponent(BARK_ICON);
+    try { GM_xmlhttpRequest({ method: "GET", url: u }); } catch {}
+  }
+  let notifiedHash = ""; // 已推過的戰鬥 hash（每場只推一次）
 
   /* ─────────────────────────────────────────────────────────
    * 青箱線資料表（單位：貢献度原始點數 pt；萬＝10000pt）逐王。
@@ -224,6 +241,10 @@
           const over = contrib >= raid.line, diff = Math.abs(contrib - raid.line);
           elVerdict.textContent = over ? "✅+" + fmtMan(diff) : "差 " + fmtMan(diff);
           elVerdict.style.color = over ? "#7ee29a" : "#ffb454";
+          if (over && notifiedHash !== location.hash) {   // 剛跨線：每場推一次 Bark
+            notifiedHash = location.hash;
+            notifyBark("🔵 青箱線突破·" + raid.key, "貢 " + fmtMan(contrib) + " / 線 " + fmtMan(raid.line));
+          }
         } else { elVerdict.textContent = ""; }
       }
     }
@@ -286,7 +307,7 @@
   });
 
   setInterval(tick, 1000);
-  window.addEventListener("hashchange", () => { detectCache = { hash: "", entry: undefined }; tick(); });
+  window.addEventListener("hashchange", () => { detectCache = { hash: "", entry: undefined }; notifiedHash = ""; tick(); });
   addEventListener("resize", () => { if (!dragging) reposition(); }, { passive: true });
   tick();
 })();

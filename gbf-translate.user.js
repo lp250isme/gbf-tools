@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         碧藍幻想 全局翻譯 (DeepL)
+// @name         碧藍幻想 全局翻譯（多引擎）
 // @namespace    https://github.com/lp250isme/gbf-tools
-// @version      0.1.0
-// @description  把 GBF 的日文 DOM 文字（技能/武器/召喚/任務說明、選單）即時翻成中文。用 DeepL，含快取、可開關。戰鬥中 sprite 圖片文字無法翻譯（那是圖不是字）。
+// @version      0.2.0
+// @description  把 GBF 的日文 DOM 文字（技能/武器/召喚/任務說明、選單）即時翻成中文。可切換 Google(免費)/DeepL/Gemini/ChatGPT，含快取、開關、繁簡切換。戰鬥中 sprite 圖片文字無法翻譯（那是圖不是字）。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       kv
 // @match        *://game.granbluefantasy.jp/*
@@ -13,30 +13,36 @@
 // @grant        GM_getValue
 // @grant        GM_deleteValue
 // @grant        GM_registerMenuCommand
+// @connect      translate.googleapis.com
 // @connect      api-free.deepl.com
 // @connect      api.deepl.com
+// @connect      generativelanguage.googleapis.com
+// @connect      api.openai.com
 // ==/UserScript==
 (function () {
   "use strict";
 
   /* ─────────────────────────────────────
    * 0. 設定（存在 Tampermonkey 儲存）
-   *    - deepl_key：DeepL API key（Free 結尾是 :fx）
-   *    - enabled  ：翻譯開關
-   *    - target   ：ZH-HANT(繁) / ZH-HANS(簡)
    * ───────────────────────────────────── */
 
   const cfg = {
-    key: GM_getValue("deepl_key", ""),
+    provider: GM_getValue("provider", "google"), // google / deepl / gemini / openai
+    target: GM_getValue("target", "ZH-HANT"),    // ZH-HANT / ZH-HANS
     enabled: GM_getValue("enabled", true),
-    target: GM_getValue("target", "ZH-HANT"),
+    keys: {
+      deepl: GM_getValue("key_deepl", ""),
+      gemini: GM_getValue("key_gemini", ""),
+      openai: GM_getValue("key_openai", ""),
+    },
   };
 
-  // DeepL Free 的 key 以 ":fx" 結尾 → 走 api-free；Pro → api
-  const endpoint = () =>
-    cfg.key.endsWith(":fx")
-      ? "https://api-free.deepl.com/v2/translate"
-      : "https://api.deepl.com/v2/translate";
+  // 各目標語言在不同引擎的代碼 / 名稱
+  const TARGETS = {
+    "ZH-HANT": { deepl: "ZH-HANT", google: "zh-TW", ai: "Traditional Chinese (Taiwan)", name: "繁體中文" },
+    "ZH-HANS": { deepl: "ZH-HANS", google: "zh-CN", ai: "Simplified Chinese", name: "简体中文" },
+  };
+  const T = () => TARGETS[cfg.target];
 
   /* ─────────────────────────────────────
    * 1. 樣式（霜玻璃小吐司，沿用生態系設計語言）
@@ -59,8 +65,7 @@
   `;
   document.head.appendChild(style);
 
-  let toastEl = null,
-    toastTimer = null;
+  let toastEl = null, toastTimer = null;
   const toast = (msg, ms = 2800) => {
     if (!toastEl) {
       toastEl = document.createElement("div");
@@ -75,25 +80,27 @@
   };
 
   /* ─────────────────────────────────────
-   * 2. 翻譯快取（記憶體 Map + 持久化 JSON，去重省額度）
+   * 2. 翻譯快取（記憶體 Map + 持久化 JSON，依目標語言分桶）
    * ───────────────────────────────────── */
 
   const CACHE_CAP = 12000;
-  const cache = new Map(Object.entries(GM_getValue("cache_" + cfg.target, {})));
+  let cache = new Map(Object.entries(GM_getValue("cache_" + cfg.target, {})));
   let persistTimer = null;
   const persist = () => {
     clearTimeout(persistTimer);
     persistTimer = setTimeout(() => {
-      // 超量時砍掉最舊的（Map 保插入序）
       while (cache.size > CACHE_CAP) cache.delete(cache.keys().next().value);
       GM_setValue("cache_" + cfg.target, Object.fromEntries(cache));
     }, 1200);
   };
+  const reloadCache = () => {
+    cache = new Map(Object.entries(GM_getValue("cache_" + cfg.target, {})));
+  };
 
   /* ─────────────────────────────────────
    * 3. 日文偵測 & 文字節點掃描
-   *    只翻含「假名」的文字——純漢字詞（武器/召喚石…）中文讀者多半看得懂，
-   *    跳過可避免誤翻中文/數字，真正看不懂的效果說明都帶假名會被抓到。
+   *    只翻含「假名」的文字——真正看不懂的效果說明都帶假名；純漢字詞
+   *    （武器/召喚石…）中文讀者多半看得懂，跳過可避免誤翻中文/數字。
    * ───────────────────────────────────── */
 
   const KANA = /[぀-ヿｦ-ﾟ]/; // 平/片假名 + 半形片假名
@@ -103,7 +110,7 @@
   ]);
 
   const originals = new WeakMap(); // 譯後節點 → 原文（關閉時還原）
-  const liveNodes = new Set();     // 目前已翻的節點（還原 / 防 GC 清理用）
+  const liveNodes = new Set();     // 目前已翻的節點
 
   const shouldTranslateNode = (node) => {
     const t = node.nodeValue;
@@ -111,7 +118,6 @@
     let el = node.parentElement;
     if (!el) return false;
     if (el.isContentEditable) return false;
-    // 往上找：碰到要跳過的 tag 或自家 UI 就放棄
     for (let p = el; p; p = p.parentElement) {
       if (SKIP_TAGS.has(p.tagName)) return false;
       if (p.dataset && p.dataset.gbftUi) return false;
@@ -119,7 +125,6 @@
     return true;
   };
 
-  // 從一個 root 收集所有可翻文字節點
   const collectFrom = (root) => {
     const out = [];
     if (root.nodeType === Node.TEXT_NODE) {
@@ -137,11 +142,10 @@
   };
 
   /* ─────────────────────────────────────
-   * 4. 套用譯文（保留原本前後空白；用 paused 旗標避免觸發自己的 observer）
+   * 4. 套用譯文（保留前後空白；paused 旗標避免觸發自己的 observer）
    * ───────────────────────────────────── */
 
   let paused = false;
-
   const applyTranslation = (node, translated) => {
     const raw = node.nodeValue;
     const lead = raw.match(/^\s*/)[0];
@@ -154,71 +158,160 @@
   };
 
   /* ─────────────────────────────────────
-   * 5. DeepL 呼叫（批次 + 併發限制 + 錯誤處理）
+   * 5. 翻譯引擎（每個 provider 提供 translate(texts[]) → Promise<string[]|null>）
    * ───────────────────────────────────── */
 
-  const BATCH = 40;          // 每次最多幾段
-  const CHAR_BUDGET = 4500;  // 每次最多幾字
-  const CONCURRENCY = 2;
-
   let halted = false; // 致命錯誤（key 錯/額度爆）後本回合停手，不再狂打 API
+  const CHAR_BUDGET = 4500;
 
-  const callDeepL = (texts, retried) =>
+  const httpErr = (status, text) => {
+    if (status === 401 || status === 403) { halted = true; toast("❌ API key 無效，請用選單重設", 4000); }
+    else if (status === 456) { halted = true; toast("⚠️ DeepL 本月額度已用完，換別的引擎", 4500); }
+    else if (status === 429) { halted = true; toast("⚠️ 請求過於頻繁/額度已滿，換別的引擎或稍後再開", 4500); }
+    else toast("翻譯失敗（HTTP " + status + "）", 3000);
+  };
+
+  const gmPost = (url, headers, data) =>
     new Promise((resolve) => {
-      let body =
-        texts.map((t) => "text=" + encodeURIComponent(t)).join("&") +
-        "&source_lang=JA&target_lang=" + cfg.target +
-        "&split_sentences=1";
       GM_xmlhttpRequest({
-        method: "POST",
-        url: endpoint(),
-        headers: {
-          Authorization: "DeepL-Auth-Key " + cfg.key,
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        data: body,
-        timeout: 20000,
-        onload: (res) => {
-          if (res.status === 200) {
-            try {
-              const arr = JSON.parse(res.responseText).translations.map((x) => x.text);
-              resolve(arr);
-            } catch (e) {
-              resolve(null);
-            }
-            return;
-          }
-          // 舊版 DeepL 可能不認 ZH-HANT → 退回 ZH 再試一次
-          if (res.status === 400 && !retried && /target_lang|ZH-HANT|ZH-HANS/.test(res.responseText)) {
-            const prev = cfg.target;
-            cfg.target = "ZH";
-            callDeepL(texts, true).then(resolve);
-            cfg.target = prev;
-            return;
-          }
-          if (res.status === 403) { halted = true; toast("❌ DeepL key 無效，請用選單重新設定", 4000); }
-          else if (res.status === 456) { halted = true; toast("⚠️ DeepL 本月額度已用完", 4000); }
-          else if (res.status === 429) { halted = true; toast("⚠️ DeepL 請求過於頻繁，稍後再試", 4000); }
-          else { toast("翻譯失敗（HTTP " + res.status + "）", 3000); }
-          resolve(null);
-        },
+        method: "POST", url, headers, data, timeout: 25000,
+        onload: (r) => resolve(r),
         onerror: () => { toast("翻譯連線失敗", 3000); resolve(null); },
         ontimeout: () => { toast("翻譯逾時", 3000); resolve(null); },
       });
     });
 
+  // ── Google（免費 gtx 端點，免 key，一次一段）──
+  const googleOne = (text) =>
+    new Promise((resolve) => {
+      const url =
+        "https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=" +
+        T().google + "&dt=t&q=" + encodeURIComponent(text);
+      GM_xmlhttpRequest({
+        method: "GET", url, timeout: 15000,
+        onload: (r) => {
+          if (r.status !== 200) { httpErr(r.status, r.responseText); resolve(null); return; }
+          try {
+            const data = JSON.parse(r.responseText);
+            resolve(data[0].map((seg) => seg[0]).join(""));
+          } catch (e) { resolve(null); }
+        },
+        onerror: () => resolve(null),
+        ontimeout: () => resolve(null),
+      });
+    });
+  const googleTranslate = (texts) => Promise.all(texts.map(googleOne));
+
+  // ── DeepL ──
+  const deeplTranslate = async (texts) => {
+    if (!cfg.keys.deepl) { toast("🔑 尚未設定 DeepL key", 3500); return null; }
+    const ep = cfg.keys.deepl.endsWith(":fx")
+      ? "https://api-free.deepl.com/v2/translate"
+      : "https://api.deepl.com/v2/translate";
+    const body =
+      texts.map((t) => "text=" + encodeURIComponent(t)).join("&") +
+      "&source_lang=JA&target_lang=" + T().deepl + "&split_sentences=1";
+    const r = await gmPost(ep, {
+      Authorization: "DeepL-Auth-Key " + cfg.keys.deepl,
+      "Content-Type": "application/x-www-form-urlencoded",
+    }, body);
+    if (!r) return null;
+    if (r.status !== 200) {
+      // 舊版可能不認 ZH-HANT → 退回 ZH 再試
+      if (r.status === 400 && /target_lang|ZH-HAN/.test(r.responseText)) {
+        const body2 = body.replace(/target_lang=[^&]+/, "target_lang=ZH");
+        const r2 = await gmPost(ep, {
+          Authorization: "DeepL-Auth-Key " + cfg.keys.deepl,
+          "Content-Type": "application/x-www-form-urlencoded",
+        }, body2);
+        if (r2 && r2.status === 200) {
+          try { return JSON.parse(r2.responseText).translations.map((x) => x.text); } catch (e) { return null; }
+        }
+      }
+      httpErr(r.status, r.responseText);
+      return null;
+    }
+    try { return JSON.parse(r.responseText).translations.map((x) => x.text); } catch (e) { return null; }
+  };
+
+  // ── 共用：AI 引擎的提示語（要求回傳同長度 JSON 陣列）──
+  const aiPrompt = (texts) =>
+    "You are a professional translator for the mobile game Granblue Fantasy (グランブルーファンタジー). " +
+    "Translate each Japanese string in the following JSON array into " + T().ai + ". " +
+    "Keep game terminology natural and concise. Do NOT add notes. " +
+    "Return ONLY a JSON array of strings with the SAME length and order.\n\n" +
+    JSON.stringify(texts);
+
+  // ── Gemini ──
+  const geminiTranslate = async (texts) => {
+    if (!cfg.keys.gemini) { toast("🔑 尚未設定 Gemini key", 3500); return null; }
+    const url =
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" +
+      encodeURIComponent(cfg.keys.gemini);
+    const body = JSON.stringify({
+      contents: [{ parts: [{ text: aiPrompt(texts) }] }],
+      generationConfig: {
+        temperature: 0.2,
+        responseMimeType: "application/json",
+        responseSchema: { type: "ARRAY", items: { type: "STRING" } },
+      },
+    });
+    const r = await gmPost(url, { "Content-Type": "application/json" }, body);
+    if (!r) return null;
+    if (r.status !== 200) { httpErr(r.status, r.responseText); return null; }
+    try {
+      const txt = JSON.parse(r.responseText).candidates[0].content.parts[0].text;
+      const arr = JSON.parse(txt);
+      return Array.isArray(arr) && arr.length === texts.length ? arr : null;
+    } catch (e) { return null; }
+  };
+
+  // ── OpenAI / ChatGPT ──
+  const openaiTranslate = async (texts) => {
+    if (!cfg.keys.openai) { toast("🔑 尚未設定 ChatGPT key", 3500); return null; }
+    const body = JSON.stringify({
+      model: "gpt-4o-mini",
+      temperature: 0.2,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content:
+          "Translate each Japanese string to " + T().ai +
+          ". Game context: Granblue Fantasy. Return JSON object {\"t\":[...]} where t is an array of translations with the SAME length and order as the input array." },
+        { role: "user", content: JSON.stringify(texts) },
+      ],
+    });
+    const r = await gmPost("https://api.openai.com/v1/chat/completions", {
+      Authorization: "Bearer " + cfg.keys.openai,
+      "Content-Type": "application/json",
+    }, body);
+    if (!r) return null;
+    if (r.status !== 200) { httpErr(r.status, r.responseText); return null; }
+    try {
+      const obj = JSON.parse(JSON.parse(r.responseText).choices[0].message.content);
+      const arr = obj.t || obj.translations;
+      return Array.isArray(arr) && arr.length === texts.length ? arr : null;
+    } catch (e) { return null; }
+  };
+
+  const PROVIDERS = {
+    google: { label: "Google 翻譯（免費）", needsKey: false, batch: 1, concurrency: 6, fn: googleTranslate },
+    deepl:  { label: "DeepL",              needsKey: true,  batch: 40, concurrency: 2, fn: deeplTranslate },
+    gemini: { label: "Gemini",             needsKey: true,  batch: 40, concurrency: 2, fn: geminiTranslate },
+    openai: { label: "ChatGPT",            needsKey: true,  batch: 40, concurrency: 2, fn: openaiTranslate },
+  };
+  const P = () => PROVIDERS[cfg.provider];
+
   /* ─────────────────────────────────────
-   * 6. 翻譯佇列（去重、查快取、批次送 DeepL、回填）
+   * 6. 翻譯佇列（去重、查快取、批次併發送出、回填）
    * ───────────────────────────────────── */
 
-  // src(trim 後字串) → 等待回填的節點清單
-  let pending = new Map();
+  let pending = new Map(); // src(trim 後) → 等待回填的節點清單
   let flushScheduled = false;
   let inFlight = 0;
 
   const enqueue = (nodes) => {
     if (!cfg.enabled || halted) return;
-    if (!cfg.key) return;
+    if (P().needsKey && !cfg.keys[cfg.provider]) return;
     for (const node of nodes) {
       const src = node.nodeValue.trim();
       if (!src) continue;
@@ -233,49 +326,55 @@
   const scheduleFlush = () => {
     if (flushScheduled) return;
     flushScheduled = true;
-    setTimeout(flush, 250);
+    setTimeout(() => { flushScheduled = false; pump(); }, 250);
   };
 
-  const flush = async () => {
-    flushScheduled = false;
-    if (halted || pending.size === 0) return;
-    if (inFlight >= CONCURRENCY) { scheduleFlush(); return; }
-
-    // 從 pending 取一批（控數量與字數）
-    const batchSrc = [];
+  const takeBatch = () => {
+    const max = P().batch;
+    const srcs = [];
     let chars = 0;
     for (const src of pending.keys()) {
-      if (batchSrc.length >= BATCH || chars + src.length > CHAR_BUDGET) break;
-      batchSrc.push(src);
+      if (srcs.length >= max) break;
+      if (srcs.length && chars + src.length > CHAR_BUDGET) break;
+      srcs.push(src);
       chars += src.length;
     }
-    const targets = batchSrc.map((s) => [s, pending.get(s)]);
-    batchSrc.forEach((s) => pending.delete(s));
+    return srcs;
+  };
 
-    inFlight++;
-    const results = await callDeepL(batchSrc);
-    inFlight--;
-
-    if (results) {
-      batchSrc.forEach((src, i) => {
-        const zh = results[i];
-        if (zh == null) return;
+  const sendBatch = async (srcs) => {
+    const targets = srcs.map((s) => [s, pending.get(s)]);
+    srcs.forEach((s) => pending.delete(s));
+    const res = await P().fn(srcs);
+    if (res) {
+      srcs.forEach((src, i) => {
+        const zh = res[i];
+        if (zh == null || zh === "") return;
         cache.set(src, zh);
-        for (const node of targets[i][1]) {
-          if (node.isConnected) applyTranslation(node, zh);
-        }
+        for (const node of targets[i][1]) if (node.isConnected) applyTranslation(node, zh);
       });
       persist();
     }
-    if (pending.size) scheduleFlush(); // 還有沒送完的，繼續
+  };
+
+  const pump = () => {
+    if (halted) return;
+    const c = P().concurrency;
+    while (inFlight < c && pending.size) {
+      const srcs = takeBatch();
+      if (!srcs.length) break;
+      inFlight++;
+      sendBatch(srcs)
+        .catch(() => {})
+        .finally(() => { inFlight--; if (pending.size) scheduleFlush(); });
+    }
   };
 
   /* ─────────────────────────────────────
    * 7. 觀察 DOM 變動（GBF 是 SPA，內容隨時抽換）
    * ───────────────────────────────────── */
 
-  let observer = null;
-  let debounceTimer = null;
+  let observer = null, debounceTimer = null;
   const dirtyRoots = new Set();
 
   const onMutations = (muts) => {
@@ -285,8 +384,7 @@
         if (m.target.nodeType === Node.TEXT_NODE) dirtyRoots.add(m.target);
       } else {
         m.addedNodes.forEach((n) => {
-          if (n.nodeType === Node.ELEMENT_NODE || n.nodeType === Node.TEXT_NODE)
-            dirtyRoots.add(n);
+          if (n.nodeType === Node.ELEMENT_NODE || n.nodeType === Node.TEXT_NODE) dirtyRoots.add(n);
         });
       }
     }
@@ -310,9 +408,7 @@
   const startObserver = () => {
     if (observer) return;
     observer = new MutationObserver(onMutations);
-    observer.observe(document.body, {
-      childList: true, subtree: true, characterData: true,
-    });
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
   };
   const stopObserver = () => {
     if (!observer) return;
@@ -324,14 +420,19 @@
    * 8. 開 / 關
    * ───────────────────────────────────── */
 
+  const needKeyMissing = () => P().needsKey && !cfg.keys[cfg.provider];
+
   const enable = () => {
     cfg.enabled = true;
     GM_setValue("enabled", true);
-    if (!cfg.key) { toast("🔑 尚未設定 DeepL key，請點 Tampermonkey 選單設定", 4000); return; }
+    if (needKeyMissing()) {
+      toast("🔑 " + P().label + " 需先用選單設定 API Key", 4000);
+      return;
+    }
     halted = false;
     startObserver();
-    enqueue(collectFrom(document.body)); // 整頁先掃一次
-    toast("🌐 翻譯已開啟");
+    enqueue(collectFrom(document.body));
+    toast("🌐 翻譯已開啟（" + P().label + "）");
   };
 
   const disable = () => {
@@ -339,7 +440,6 @@
     GM_setValue("enabled", false);
     stopObserver();
     pending.clear();
-    // 盡量還原原文
     paused = true;
     let restored = 0;
     for (const node of liveNodes) {
@@ -355,34 +455,54 @@
    * 9. Tampermonkey 選單
    * ───────────────────────────────────── */
 
-  GM_registerMenuCommand("🌐 翻譯：開 / 關", () => (cfg.enabled ? disable() : enable()));
+  const setProvider = (id) => {
+    cfg.provider = id;
+    GM_setValue("provider", id);
+    halted = false;
+    pending.clear();
+    inFlight = 0;
+    if (needKeyMissing()) {
+      toast("已選 " + P().label + "，請用選單設定 API Key", 4000);
+      return;
+    }
+    if (cfg.enabled) { startObserver(); enqueue(collectFrom(document.body)); }
+    toast("翻譯引擎：" + P().label);
+  };
 
-  GM_registerMenuCommand("🔑 設定 DeepL API Key", () => {
-    const v = prompt(
-      "貼上你的 DeepL API Key\n（Free 方案的 key 以 :fx 結尾，會自動走免費端點）\n\n免費註冊：https://www.deepl.com/pro-api",
-      cfg.key
-    );
+  GM_registerMenuCommand("🌐 翻譯：開 / 關", () => (cfg.enabled ? disable() : enable()));
+  GM_registerMenuCommand("① 引擎：Google（免費，免 key）", () => setProvider("google"));
+  GM_registerMenuCommand("② 引擎：DeepL", () => setProvider("deepl"));
+  GM_registerMenuCommand("③ 引擎：Gemini（AI）", () => setProvider("gemini"));
+  GM_registerMenuCommand("④ 引擎：ChatGPT（AI）", () => setProvider("openai"));
+
+  GM_registerMenuCommand("🔑 設定目前引擎的 API Key", () => {
+    if (!P().needsKey) { toast("Google 免費版不需要 key 🎉"); return; }
+    const help = {
+      deepl: "DeepL key（Free 結尾為 :fx）\n免費註冊：https://www.deepl.com/pro-api",
+      gemini: "Gemini API key\n免費取得：https://aistudio.google.com/apikey",
+      openai: "OpenAI API key（sk-...）\nhttps://platform.openai.com/api-keys",
+    }[cfg.provider];
+    const v = prompt("【" + P().label + "】\n" + help, cfg.keys[cfg.provider]);
     if (v == null) return;
-    cfg.key = v.trim();
-    GM_setValue("deepl_key", cfg.key);
-    toast(cfg.key ? "✅ key 已儲存" : "已清除 key");
-    if (cfg.key && cfg.enabled) enable();
+    cfg.keys[cfg.provider] = v.trim();
+    GM_setValue("key_" + cfg.provider, cfg.keys[cfg.provider]);
+    toast(cfg.keys[cfg.provider] ? "✅ key 已儲存" : "已清除 key");
+    if (cfg.keys[cfg.provider] && cfg.enabled) { halted = false; enable(); }
   });
 
   GM_registerMenuCommand("🈯 切換 繁中 / 簡中", () => {
     cfg.target = cfg.target === "ZH-HANT" ? "ZH-HANS" : "ZH-HANT";
     GM_setValue("target", cfg.target);
-    // 換語言 → 換快取桶並重載
-    cache.clear();
-    Object.entries(GM_getValue("cache_" + cfg.target, {})).forEach(([k, v]) => cache.set(k, v));
-    toast("目標語言：" + (cfg.target === "ZH-HANT" ? "繁體中文" : "简体中文"));
+    reloadCache();
+    toast("目標語言：" + T().name);
   });
+
+  GM_registerMenuCommand("ℹ️ 目前狀態", () =>
+    toast((cfg.enabled ? "開啟" : "關閉") + "｜引擎 " + P().label + "｜" + T().name, 3500));
 
   GM_registerMenuCommand("🗑 清除翻譯快取", () => {
     cache.clear();
-    GM_deleteValue("cache_ZH-HANT");
-    GM_deleteValue("cache_ZH-HANS");
-    GM_deleteValue("cache_ZH");
+    ["ZH-HANT", "ZH-HANS", "ZH"].forEach((k) => GM_deleteValue("cache_" + k));
     toast("快取已清除");
   });
 
@@ -391,11 +511,11 @@
    * ───────────────────────────────────── */
 
   if (cfg.enabled) {
-    if (cfg.key) {
+    if (needKeyMissing()) {
+      toast("🔑 GBF 翻譯：" + P().label + " 需先設定 key（或改用 Google 免費）", 5000);
+    } else {
       startObserver();
       enqueue(collectFrom(document.body));
-    } else {
-      toast("🔑 GBF 翻譯：請點 Tampermonkey 選單設定 DeepL key", 5000);
     }
   }
 })();

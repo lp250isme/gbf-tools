@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         碧藍幻想小工具
 // @namespace    https://gist.github.com/biuuu
-// @version      0.1.4
-// @description  碧藍幻想瀏覽器輔助工具：隱藏滾動條、側邊欄、自動選取下拉選單、保持 BGM 播放等
+// @version      0.1.5
+// @description  碧藍幻想瀏覽器輔助工具：隱藏滾動條、側邊欄、聊天室、自動選取下拉選單、保持 BGM 播放等
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       biuuu (原作), kv (修改)
 // @match        *://game.granbluefantasy.jp/*
@@ -27,6 +27,7 @@
 
   addStyle(`::-webkit-scrollbar { display: none; }`);                                         // 隱藏滾動條
   addStyle(`body>div:first-child>div:first-child>div:first-child[data-reactid]{display:none}`); // 隱藏 Mobage 側邊欄
+  addStyle(`#general-chat { display: none !important; }`);                                     // 隱藏聊天室
   addStyle(`.txt-info-content, .txt-room-id, .prt-battle-id { user-select: text !important; }`); // 允許複製救援碼/房間號
 
   /* ─────────────────────────────────────

@@ -1,0 +1,100 @@
+# Granblue Fantasy Tools (gbf-tools)
+
+[繁體中文](README.md) ｜ **English** ｜ [日本語](README.ja.md)
+
+A set of browser userscripts for the web version of [Granblue Fantasy](https://game.granbluefantasy.jp/): UI tweaks, a shortcut bar, live translation, and phone push notifications for "battle done / party wiped / blue-chest line". Each script is **independent** — install only what you need.
+
+## Credits & notice
+
+The main script is modified from [biuuu](https://gist.github.com/biuuu)'s [blhx.user.js](https://gist.github.com/biuuu/b5fca321fc232b79161095c71a26f43f) (hide scrollbar/sidebar, copyable raid codes, keep BGM, etc.). This fork is extended by kv. Thanks to the original author; open an Issue for any copyright concerns.
+
+## Install
+
+First install a userscript manager: [Tampermonkey](https://www.tampermonkey.net/) (recommended) / [Violentmonkey](https://violentmonkey.github.io/) / [Greasemonkey](https://www.greasespot.net/).
+Then open the `.user.js` you want and click **Raw** — the manager will prompt to install. Every script ships an `@updateURL`, so it auto-updates afterwards.
+
+## Scripts at a glance
+
+| File | What it is |
+|---|---|
+| `gbf-tools.user.js` | **Main script**: hide scrollbar/sidebar, copyable raid codes, keep BGM, enhanced drop/skill/quantity selects |
+| `gbf-shortcut-bar.user.js` | **Shortcut bar** (frosted-glass look): floating bar of custom buttons, optional cloud sync |
+| `gbf-shortcut-bar-native.user.js` | Shortcut bar (GBF native button look); install one or the other |
+| `gbf-translate.user.js` | **Live translation**: translates GBF's Japanese DOM text in place |
+| `kv/` ・ `bark/` | **Push scripts** (blue-chest line / battle done / wipe / energy); split by push channel, see below |
+
+---
+
+## Main script: `gbf-tools.user.js`
+
+| Feature | Description |
+|---|---|
+| 🔇 Hide scrollbar | Removes the Webkit scrollbar |
+| 🚫 Hide Mobage sidebar | Hides the left Mobage nav bar |
+| 📋 Copyable raid/room code | Select & copy raid/room codes directly |
+| 🎵 Keep BGM | BGM keeps playing across tab switches |
+| 💧 Drop-count menu | Prepends 15–11 to the count menu, defaults to 15 |
+| 📈 Auto max skill level | Auto-selects the highest skill level |
+| 📦 Auto half quantity | Auto-selects the smallest option ≥ half of max (skips artifact page) |
+
+## Shortcut bar: `gbf-shortcut-bar*.user.js`
+
+A floating bar of **custom shortcut buttons** (title + link) that jump straight to a page (GBF internal paths like `quest`, `party/index/0/npc/0`, or any full URL).
+
+- **Two looks, install one** (same features): `gbf-shortcut-bar.user.js` = frosted glass; `gbf-shortcut-bar-native.user.js` = GBF native button sprites. Same `@name`, so installing the other just reskins it and keeps your settings.
+- **Draggable**: grab the **⠿** handle, drop anywhere; position is remembered (local). Clamped back on-screen if dragged off.
+- **Categories**: shortcuts can have a group; with multiple groups a gold "cycle category" chip appears.
+- **Hotkeys**: bind a single key per shortcut (won't fire while typing in inputs).
+- **Show toggle**: the ⚙ edit mode adds/edits/deletes/hides shortcuts (collapsed = just handle + ⚙).
+- **Local by default**: shortcuts live in the browser, no server.
+
+### Cross-device sync (optional, bring your own backend)
+
+Fill `SYNC_API` / `SYNC_TOKEN` at the top of the script (your own endpoint) to share across devices. The contract is tiny: `GET` returns the last saved JSON (or `null`), `PUT` stores the request body verbatim, both authed via `Authorization: Bearer <SYNC_TOKEN>`. A Cloudflare Workers + KV free tier works.
+
+## Live translation: `gbf-translate.user.js`
+
+Translates GBF's **Japanese DOM text** into Chinese in place — skill/weapon effects, summons, quests & story, menus. Replaces the original, caches results to save quota, follows page changes. **Defaults to Google Translate (free, no key) and works out of the box**; switch to DeepL (needs a key) from the menu if needed.
+
+> ⚠ Battle-screen buttons / damage numbers / art text are **sprite images**, not text, so they can't be translated.
+
+---
+
+## Push scripts (`kv/` and `bark/`)
+
+Battle-related phone push, split into two folders by **push channel** — **install from one folder only** (don't install both channels of the same script, or it double-pushes):
+
+| Folder | Channel | For |
+|---|---|---|
+| `kv/` | **kv push hub** (self-hosted `POST /api/notify`) | People with their own push backend |
+| `bark/` | **Bark** (`api.day.app` direct) | People using [Bark App](https://bark.day.app/) |
+
+### Included scripts
+
+| Script | What it does | kv | bark |
+|---|---|:--:|:--:|
+| `gbf-done.user.js` | **Battle done** (result screen / boss killed by others) + **party wiped** push | ✅ | ✅ |
+| `gbf-aobako-line.user.js` | **Blue-chest line**: in-battle bar showing "your honors vs this raid's blue-chest line", marks ✅ when crossed; can push on "crossed / wiped" | ✅ | ✅ |
+| `gbf-genki-notify.user.js` | **Energy refilled**: pushes when expedition energy is full (**scheduled** — arrives even with the browser closed) | ✅ | — |
+
+> Energy is a scheduled push (compute the refill time → post to a self-hosted scheduler → fires later), which is inherently the kv self-hosted setup; Bark has no equivalent "fire on a timer while closed", so it lives only in `kv/`.
+
+### Configure (after install)
+
+Use the menu under **Tampermonkey icon → that script** — **no code editing needed**:
+- 🔑 Set token/key (`kv/` sets the kv push-hub token; `bark/` sets the Bark device key)
+- 🔔/🔕 Toggle each notification **independently** (done / wipe / line-crossed / wipe)
+- ℹ️ Show current status
+
+### Blue-chest line bar
+
+- In a multiplayer raid a single-row bar appears: `raid name ｜ honors ｜ blue-chest line ｜ verdict`. Same look as the shortcut bar's native skin; draggable, text selectable.
+- **Honors** are read from your own row in the MVP panel; **raid name** is matched from on-screen battle text.
+- If it mis-detects / can't detect, the ⚙ menu lets you **manually override the raid** or list candidate strings.
+- Blue-chest lines are **built in per boss**, tagged `confirmed / estimate / no blue chest / no data` (mostly community estimates that shift between versions; main sources: huijiwiki, wikiwiki "青箱ライン一覧", kamigame).
+
+> ⚠ **Public-repo safety**: keep all tokens/keys/Bark keys only in your **local userscript manager** (or set via the menu, stored locally). **Never** commit a version containing real values back to the repo.
+
+## License
+
+Open-sourced in the spirit of the original; see [LICENSE](LICENSE).

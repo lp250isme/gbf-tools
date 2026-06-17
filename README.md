@@ -1,211 +1,100 @@
-# 碧藍幻想小工具
+# 碧藍幻想小工具（gbf-tools）
 
-針對 [碧藍幻想（Granblue Fantasy）](https://game.granbluefantasy.jp/) 網頁版的瀏覽器使用者腳本，提供多項介面優化與操作便利功能。
+**繁體中文** ｜ [English](README.en.md) ｜ [日本語](README.ja.md)
+
+針對 [碧藍幻想（Granblue Fantasy）](https://game.granbluefantasy.jp/) 網頁版的一組瀏覽器使用者腳本：介面優化、捷徑列、即時翻譯，以及「打完了／全滅／青箱線」等手機推播。各腳本**互相獨立**，挑需要的裝即可。
 
 ## 致謝與聲明
 
-本腳本基於 [biuuu](https://gist.github.com/biuuu) 的 [blhx.user.js](https://gist.github.com/biuuu/b5fca321fc232b79161095c71a26f43f) 修改而來。原作提供了隱藏滾動條、隱藏側邊欄、可複製救援碼、保持 BGM 播放等基礎功能。
+主腳本基於 [biuuu](https://gist.github.com/biuuu) 的 [blhx.user.js](https://gist.github.com/biuuu/b5fca321fc232b79161095c71a26f43f) 修改而來（隱藏滾動條／側欄、可複製救援碼、保持 BGM 等）。本 fork 由 kv 擴充。感謝原作者；有版權疑慮請開 Issue。
 
-本 fork 由 [kv](https://github.com/kv) 在原作基礎上新增以下功能：
-- 水滴選單擴充（15～11 倒序選項）
-- 技能等級選單自動選最高
-- 數量設定選單自動半選
+## 安裝
 
-感謝原作者 biuuu 的貢獻！如有任何版權疑慮，請透過 Issue 聯繫，將立即處理。
+先裝任一使用者腳本管理器：[Tampermonkey](https://www.tampermonkey.net/)（推薦）／[Violentmonkey](https://violentmonkey.github.io/)／[Greasemonkey](https://www.greasespot.net/)。
+然後點你要的 `.user.js` → 「Raw」按鈕，管理器會跳出安裝提示，確認即可。所有腳本都帶 `@updateURL`，之後會自動更新。
 
-## 功能一覽
+## 腳本一覽
+
+| 檔案 | 是什麼 |
+|---|---|
+| `gbf-tools.user.js` | **主腳本**：隱藏滾動條／側欄、救援碼可複製、保持 BGM、水滴／技能／數量選單增強 |
+| `gbf-shortcut-bar.user.js` | **捷徑列**（霜玻璃外觀）：可自訂按鈕的浮動工具列，可選雲端同步 |
+| `gbf-shortcut-bar-native.user.js` | 捷徑列（GBF 原生按鈕外觀）；與上者擇一裝 |
+| `gbf-translate.user.js` | **即時翻譯**：把 GBF 日文 DOM 文字即時翻成中文 |
+| `kv/` ・ `bark/` | **推播腳本**（青箱線／打完了／全滅／元氣）；依推播通道分兩資料夾，見下方 |
+
+---
+
+## 主腳本：`gbf-tools.user.js`
 
 | 功能 | 說明 |
-|------|------|
-| 🔇 隱藏滾動條 | 移除 Webkit 瀏覽器的滾動條顯示 |
-| 🚫 隱藏 Mobage 側邊欄 | 隱藏頁面左側的 Mobage 導航欄 |
-| 📋 可複製救援／房間號 | 讓救援代碼與房間號碼可以直接選取複製 |
-| 🎵 保持 BGM 播放 | 切換視窗時背景音樂不會中斷 |
-| 💧 水滴選單擴充 | 在次數選單頂部加入 15～11 的選項，預設選中 15 |
-| 📈 技能等級自動選最高 | 技能升級選單自動選擇最高等級 |
-| 📦 數量選單自動半選 | 數量設定選單自動選擇 ≥ 最大值一半的最小選項（artifact 頁面跳過） |
+|---|---|
+| 🔇 隱藏滾動條 | 移除 Webkit 滾動條 |
+| 🚫 隱藏 Mobage 側欄 | 隱藏左側 Mobage 導航欄 |
+| 📋 救援／房間號可複製 | 救援代碼、房號可直接選取複製 |
+| 🎵 保持 BGM | 切換視窗時背景音樂不中斷 |
+| 💧 水滴選單擴充 | 次數選單頂部加入 15～11，預設選 15 |
+| 📈 技能等級自動選最高 | 技能升級選單自動選最高等級 |
+| 📦 數量選單自動半選 | 數量選單自動選 ≥ 最大值一半的最小選項（artifact 頁跳過） |
 
-## 安裝方式
+## 捷徑列：`gbf-shortcut-bar*.user.js`
 
-### 前置需求
+一條**可自訂捷徑按鈕**（標題＋連結）的浮動工具列，點了直接跳指定頁（GBF 內部路徑如 `quest`、`party/index/0/npc/0`，或任意完整網址）。
 
-請先安裝以下任一使用者腳本管理器：
-
-- [Tampermonkey](https://www.tampermonkey.net/)（推薦）
-- [Violentmonkey](https://violentmonkey.github.io/)
-- [Greasemonkey](https://www.greasespot.net/)
-
-### 安裝腳本
-
-1. 點擊 `gbf-tools.user.js` 檔案
-2. 點擊「Raw」按鈕，腳本管理器會自動跳出安裝提示
-3. 確認安裝即可
-
-或者手動將 `gbf-tools.user.js` 的內容複製到腳本管理器中新建的腳本。
-
-## 額外腳本：打完了推播（Bark）
-
-`gbf-battle-done.user.js` 是一支**獨立**的小腳本（與主腳本互不相干，可單獨安裝）：當多人戰進到結算畫面（`#result_multi/…`）時，透過 [Bark](https://bark.day.app/) 推播一則通知到你的 iPhone——掛機刷本、人不在電腦前也收得到。
-
-安裝方式同上（點 `gbf-battle-done.user.js` 的「Raw」或複製內容到腳本管理器）。安裝後**務必**打開腳本，把開頭的：
-
-```js
-const BARK_KEY = "在此填入你的 BARK_KEY";
-```
-
-換成你自己的 Bark key（手機開 [Bark App](https://apps.apple.com/app/bark-customed-notifications/id1403753865) → 複製首頁那串 key）。
-
-> ⚠ 本 repo 為**公開**，請勿把含真實 key 的版本提交回來——key 只填在你本機的腳本管理器裡。
-
-## 額外腳本：捷徑列（可選雲端同步）
-
-`gbf-shortcut-bar.user.js` 是一支**獨立**小腳本：一條**可自訂捷徑按鈕**（標題＋連結）的**浮動工具列**，點了直接跳到指定頁——GBF 內部路徑（如 `quest`、`party/index/0/npc/0`）或任意完整網址皆可。抓左上角握把 **⠿** 可拖到畫面任一處、放開記住位置；按 **⚙** 進編輯模式可新增／修改／刪除。
-
-還支援：
-- **兩種外觀（擇一安裝，功能完全相同，只差外觀）**：`gbf-shortcut-bar.user.js` ＝**霜玻璃**質感；`gbf-shortcut-bar-native.user.js` ＝**GBF 原生按鈕底圖**（內嵌官方 sprite 切圖）。
-- **浮動可拖**：整條浮在遊戲上方，抓左上角握把拖到任一空白處、放開就記住位置（本機，不同步——各裝置螢幕尺寸不同），不會蓋到遊戲自己的按鈕；拖出畫面也會自動夾回來。單列藥丸，由左到右：握把 → 控制（齒輪／分類鈕）→ 捷徑。
-- **分類**：每個捷徑可填「群組」。有多個群組時，控制區會出現一顆**分類輪替鈕**（金色標示區分），**按一下換下一個分類**，只顯示該分類的捷徑（只有一個群組時不顯示）。
-- **快捷鍵**：每個捷徑可綁一個鍵，**直接按該鍵**就跳（綁 Q 就按 Q）；游標在輸入框／文字區時不觸發、也不吃任何修飾鍵組合（避免攔到瀏覽器原生快捷鍵）。chip 右上角會顯示小小的鍵提示。
-- **顯示開關**：編輯模式的「隱藏／顯示」鈕（或同步後端）可把捷徑收起；收起時只留握把＋⚙ 方便再打開。
-
-安裝方式同上：點你要的那支（`gbf-shortcut-bar.user.js` 霜玻璃 ／ `gbf-shortcut-bar-native.user.js` 原生風）的「Raw」或複製內容到腳本管理器。兩支 `@name` 相同，擇一安裝即可（裝另一支＝就地換皮，捷徑/設定都留著）。
-
-**預設就能用**：什麼都不用設，捷徑清單存在你瀏覽器本機（腳本管理器的 GM 儲存），完全離線、不連任何伺服器。
+- **兩種外觀擇一裝**（功能相同）：`gbf-shortcut-bar.user.js`＝霜玻璃；`gbf-shortcut-bar-native.user.js`＝GBF 原生按鈕底圖。兩支 `@name` 相同，裝另一支＝就地換皮、設定保留。
+- **浮動可拖**：抓左上握把 **⠿** 拖到任一處、放開記住位置（本機）；拖出畫面自動夾回。
+- **分類**：捷徑可填群組；多群組時出現金色「分類輪替鈕」，按一下換下一類。
+- **快捷鍵**：每個捷徑可綁一鍵，直接按該鍵就跳（在輸入框時不觸發）。
+- **顯示開關**：⚙ 編輯模式可新增／改／刪、隱藏捷徑（收起只留握把＋⚙）。
+- **預設純本機**：捷徑存瀏覽器，不連任何伺服器。
 
 ### 跨裝置同步（選用，需自備後端）
 
-想讓多台裝置／瀏覽器共用同一份捷徑，填腳本開頭這兩個——**用你自己的**端點，本腳本不綁定任何特定服務：
+填腳本開頭 `SYNC_API` / `SYNC_TOKEN`（用你自己的端點）即可多裝置共用。端點契約極簡：`GET` 回傳上次存的 JSON（沒有回 `null`）、`PUT` 原樣存 request body，皆用 `Authorization: Bearer <SYNC_TOKEN>` 驗證。可用 Cloudflare Workers + KV 免費實作。
 
-```js
-const SYNC_API   = "";  // 例：https://你的網域/api/cfg?k=gbf-shortcuts
-const SYNC_TOKEN = "";  // 對應的 bearer token
-```
+## 即時翻譯：`gbf-translate.user.js`
 
-> ⚠ 本 repo 為**公開**，真實值只填在你本機的腳本管理器裡，勿提交回來。
+把 GBF 的**日文 DOM 文字即時翻成中文**——技能／武器效果、召喚石、任務與劇情、各種選單。譯文取代原文、會快取省額度，換頁也跟著翻。**預設用 Google 翻譯（免費、免 key），裝完即用**；卡了可用選單換 DeepL（需 key）。
 
-端點只要實作這個極簡契約（任何後端都行）：
+> ⚠ 戰鬥畫面的按鈕／傷害數字／立繪文字是 **sprite 圖片**不是文字，翻不了。
 
-| 方法 | 行為 |
-|------|------|
-| `GET <SYNC_API>` | 回傳之前存的 JSON（沒有就回 `null`） |
-| `PUT <SYNC_API>` | 把 request body（一包 JSON：`{show,items:[{t,h,g?,k?}]}`，向後相容舊純陣列）原樣存起來 |
+---
 
-兩者都用 `Authorization: Bearer <SYNC_TOKEN>` 驗證。
+## 推播腳本（`kv/` 與 `bark/`）
 
-#### 參考實作（Cloudflare Workers，免費）
+戰鬥相關的手機推播，依**推播通道**分兩個資料夾，**擇一資料夾安裝**（同一支不要兩個通道都裝，會重複推）：
 
-`worker.js`：
+| 資料夾 | 通道 | 適合 |
+|---|---|---|
+| `kv/` | **kv 推播中心**（自架 `POST /api/notify`） | 有自己推播後端的人 |
+| `bark/` | **Bark**（`api.day.app` 直連） | 用 [Bark App](https://bark.day.app/) 的人 |
 
-```js
-export default {
-  async fetch(req, env) {
-    const url = new URL(req.url);
-    if (url.pathname !== '/api/cfg') return new Response('not found', { status: 404 });
-    const tok = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
-    if (!env.TOKEN || tok !== env.TOKEN) return new Response('unauthorized', { status: 401 });
-    const k = 'cfg:' + (url.searchParams.get('k') || '').replace(/[^\w.-]/g, '').slice(0, 64);
-    if (req.method === 'GET')  return Response.json(JSON.parse((await env.CFG.get(k)) || 'null'));
-    if (req.method === 'PUT') { await env.CFG.put(k, await req.text()); return Response.json({ ok: true }); }
-    return new Response('method not allowed', { status: 405 });
-  },
-};
-```
+### 內含腳本
 
-`wrangler.toml`：
+| 腳本 | 功能 | kv | bark |
+|---|---|:--:|:--:|
+| `gbf-done.user.js` | **打完了**（結算頁／別人把王打掉了）＋**全滅了**（隊伍全滅）推播 | ✅ | ✅ |
+| `gbf-aobako-line.user.js` | **青箱線**：戰鬥中即時顯示「貢献度 vs 此本青箱線」工具條，過線標 ✅，並可推「過線／滅団」 | ✅ | ✅ |
+| `gbf-genki-notify.user.js` | **元氣回滿**：探検隊元氣回滿時推播（**排程式**，關瀏覽器也收得到） | ✅ | — |
 
-```toml
-name = "gbf-sync"
-main = "worker.js"
-compatibility_date = "2024-01-01"
-[[kv_namespaces]]
-binding = "CFG"
-id = "下一步建出來的 id"
-```
+> 元氣是「算出回滿時刻 → 丟自架排程端點 → 到點才推」的排程推播，本質就是 kv 自架那套；Bark 無對等的「定時、關著也推」能力，故只在 `kv/`。
 
-部署（需 [Wrangler](https://developers.cloudflare.com/workers/wrangler/)）：
+### 設定（裝好後）
 
-```bash
-wrangler kv namespace create CFG   # 把回傳的 id 填進 wrangler.toml
-wrangler secret put TOKEN          # 設一把你自己的 bearer token
-wrangler deploy
-```
+從 **Tampermonkey 圖示 → 該腳本** 的選單操作，**不用改程式碼**：
+- 🔑 設定 token／key（`kv/` 設 kv 推播中心 token；`bark/` 設 Bark device key）
+- 🔔/🔕 各類通知**各自開關**（打完了／全滅／過線／滅団）
+- ℹ️ 查看目前狀態
 
-完成後把 `SYNC_API` 設為 `https://<你的-worker>.workers.dev/api/cfg?k=gbf-shortcuts`、`SYNC_TOKEN` 設為剛剛那把 token，各裝置填同一組即可同步。
+### 青箱線工具條
 
-> 標頭的 `@connect *` 允許連到你設定的任何網域；要收緊可改成 `@connect <你的網域>`。
+- 進多人本自動顯示單列工具條：`本名 ｜ 貢 你的貢献度 ｜ 線 青箱門檻 ｜ 過線判定`；外觀同捷徑列原生皮膚，可拖、文字可複製。
+- **貢献度**讀 MVP 面板自己那列；**本名**自動比對戰鬥畫面文字。
+- 認錯／認不出時，⚙ 選單可**手動覆寫本名**或列出候選字串。
+- 青箱線資料**逐王內建**並標明 `確定／估計／無青箱／無資料`（多為社群推算估計值，會隨版本變動；主要來源：灰机wiki、wikiwiki 青箱ライン一覧、神ゲー攻略）。
 
-## 額外腳本：元氣回滿通知（探検隊）
+> ⚠ **公開 repo 安全**：所有 token／key／Bark key 只在你**本機的腳本管理器**裡填（或用選單設定，存在本機），**切勿**把含真實值的版本提交回 repo。
 
-`gbf-genki-notify.user.js` 是一支**獨立**小腳本：探検隊「元氣」回滿時，推一則通知到你手機。算出全滿的絕對時刻後上報到你自架的排程端點，**到點才推**——所以你關掉瀏覽器、人不在電腦前也收得到。
+## 授權
 
-兩種頁面都能讀（上限固定 100，免偵測）：**探検隊頁**直接讀遊戲顯示的回復倒數（時:分），最精準、並把「每點回復 ms」實測快取起來；**主頁**只能讀到現值，就用快取速率估算（誤差 ≤ 一格約 10 分，6 小時提醒無感）。完全不輪詢遊戲伺服器、不自動操作任何東西。
-
-**需自備後端才會啟用**（預設留空＝靜靜跑、什麼都不送）。填腳本開頭：
-
-```js
-const SCHEDULE_API = "";   // 你自架的排程端點，例：https://你的網域/api/schedule
-const TOKEN        = "";   // 對應的 bearer token
-const ICON         = "";   // 選填：通知圖示 URL（建議放遊戲 icon）
-```
-
-> ⚠ 本 repo 為**公開**，真實值只填在你本機的腳本管理器裡，勿提交回來。`@connect *` 允許連你設的任何網域，要收緊改成 `@connect <你的網域>`。
-
-### 端點契約（任何能「延遲推播」的後端都行）
-
-| 方法 | 行為 |
-|------|------|
-| `POST <SCHEDULE_API>` body `{ key, fireAt, title, body, icon, url, group, level }` | 排一則 `fireAt`（毫秒絕對時刻）才送的推播；**同 `key` 覆寫**（重派只更新時刻、不堆一排） |
-| `POST <SCHEDULE_API>` body `{ key, cancel: true }` | 取消該 `key` 的排程（元氣已滿時用） |
-
-用 `Authorization: Bearer <TOKEN>` 驗證。本腳本用的 `key` 是 `gbf-genki`。
-
-#### 參考實作（Cloudflare Workers + Durable Object alarm，免費）
-
-關鍵是「延遲到 `fireAt` 才送」，用 Durable Object 的 `alarm()` 最省（不吃 KV 額度、關瀏覽器也會觸發）。核心：把 `{key, fireAt, payload}` 存進 DO 的 SQLite，`setAlarm(最早的 fireAt)`；`alarm()` 觸發時把到期的取出送推播（這裡接 [Bark](https://bark.day.app/) 或任何推播服務）再刪除，並把 alarm 對齊下一筆。完整可參考本作者 go.kvcc.me 的 `Scheduler` 類別作法。
-
-## 額外腳本：全局翻譯（多引擎）
-
-`gbf-translate.user.js` 是一支**獨立**小腳本：把 GBF 的**日文 DOM 文字即時翻成中文**——技能／武器效果、召喚石、任務與劇情說明、各種選單，看不懂的長句子都能讀。翻譯結果**取代原文**（整個遊戲像中文版），想看原文用選單關掉即可。譯文會**快取**起來（同一段不重複送、省額度），遊戲畫面換頁也跟著翻。
-
-> ⚠️ **戰鬥畫面的按鈕／傷害數字／立繪文字翻不了**——那些是 sprite **圖片**不是文字，DOM 翻譯碰不到。能翻的是「真的文字」：技能/武器/召喚/任務/劇情/選單。
-
-安裝方式同上（點 `gbf-translate.user.js` 的「Raw」）。**預設用 Google 翻譯（免費、免 key），裝完即用、不用設定任何東西。** 哪個引擎卡了就用選單換一個：
-
-| 引擎 | 是否需要 key | 取得 |
-|------|------|------|
-| **Google 翻譯** | 不用（預設） | — |
-| **DeepL** | 要（Free 結尾 `:fx`） | [deepl.com/pro-api](https://www.deepl.com/pro-api)（每月 50 萬字免費）|
-| **Gemini**（AI） | 要 | [aistudio.google.com/apikey](https://aistudio.google.com/apikey)（免費額度大）|
-| **ChatGPT**（AI） | 要 | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
-
-需要 key 的引擎：選單先選引擎 → 「🔑 設定目前引擎的 API Key」貼上即可。AI 引擎（Gemini/ChatGPT）翻遊戲術語通常最通順。
-
-Tampermonkey 選單：
-
-| 選單項 | 作用 |
-|------|------|
-| 🌐 翻譯：開 / 關 | 開關翻譯；關閉時盡量還原已翻的原文 |
-| ①②③④ 引擎 | Google / DeepL / Gemini / ChatGPT 切換 |
-| 🔑 設定目前引擎的 API Key | 填 / 改目前引擎的 key |
-| 🈯 切換 繁中 / 簡中 | 目標語言（繁/簡各自獨立快取） |
-| ℹ️ 目前狀態 | 顯示開關 / 引擎 / 語言 |
-| 🗑 清除翻譯快取 | 清掉本機已快取的譯文 |
-
-> ⚠ key 只填在你本機的腳本管理器裡，**勿**提交回 repo。標頭 `@connect` 已鎖定只連 Google / DeepL / Gemini / OpenAI 端點。
-
-## 適用網址
-
-- `https://game.granbluefantasy.jp/*`
-- `https://gbf.game.mbga.jp/*`
-
-## ⚠️ 免責聲明
-
-本腳本透過瀏覽器使用者腳本管理器（如 Tampermonkey）注入自訂的 JavaScript 與 CSS，以修改遊戲網頁的前端顯示與行為。**此行為可能違反遊戲官方的服務條款。**
-
-使用本腳本所產生的一切後果（包括但不限於帳號被警告、停權或永久封禁），**由使用者自行承擔，作者概不負責。**
-
-請在充分了解風險後自行決定是否使用。
-
-## 授權條款
-
-[MIT License](LICENSE)
+延續原作精神開源；詳見 [LICENSE](LICENSE)。

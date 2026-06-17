@@ -1,14 +1,17 @@
 // ==UserScript==
 // @name         碧藍幻想小工具
 // @namespace    https://gist.github.com/biuuu
-// @version      0.1.9
-// @description  碧藍幻想瀏覽器輔助工具：隱藏滾動條、側邊欄、聊天室、多人列表壓矮、自動選取下拉選單、保持 BGM 播放等
+// @version      0.2.0
+// @description  碧藍幻想瀏覽器輔助工具：隱藏滾動條、側邊欄、聊天室、救援清單雙欄(可開關)、自動選取下拉選單、保持 BGM 播放等
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       biuuu (原作), kv (修改)
 // @match        *://game.granbluefantasy.jp/*
 // @match        *://gbf.game.mbga.jp/*
 // @run-at       document-body
-// @grant        none
+// @grant        GM_registerMenuCommand
+// @grant        GM_unregisterMenuCommand
+// @grant        GM_setValue
+// @grant        GM_getValue
 // @updateURL    https://raw.githubusercontent.com/lp250isme/gbf-tools/main/core/gbf-tools.user.js
 // @downloadURL  https://raw.githubusercontent.com/lp250isme/gbf-tools/main/core/gbf-tools.user.js
 // ==/UserScript==
@@ -28,10 +31,17 @@
   addStyle(`::-webkit-scrollbar { display: none; }`);                                         // 隱藏滾動條
   addStyle(`body>div:first-child>div:first-child>div:first-child[data-reactid]{display:none}`); // 隱藏 Mobage 側邊欄
   addStyle(`#general-chat { display: none !important; }`);                                     // 隱藏聊天室
-  // 救援/搜尋清單改雙欄：容器 flex-wrap，卡片等比縮小到兩張能並排(清單寬~320px、卡固定303px,故須 zoom~.5)。不隱藏資訊。
-  addStyle(`.prt-raid-list{display:flex!important;flex-wrap:wrap!important;justify-content:center!important;align-content:flex-start!important}`);
-  addStyle(`.prt-raid-list .lis-raid{zoom:.5;margin:3px!important}`);
   addStyle(`.txt-info-content, .txt-room-id, .prt-battle-id { user-select: text !important; }`); // 允許複製救援碼/房間號
+
+  /* 救援/搜尋清單雙欄（可從腳本選單開關，預設關）：卡片改 inline-flex——卡內版面不變，
+   * 卡片之間在任何 block 父層都會自動換行（容器無關，涵蓋新着/救援検索）；
+   * zoom 縮到兩張並排（清單~320px、卡固定 303px，故 zoom~.5）。不隱藏任何資訊。 */
+  const PREF_2COL = "gbfTwoCol";
+  const TWO_COL_CSS = ".lis-raid{display:inline-flex!important;vertical-align:top;zoom:.5;margin:3px!important}";
+  const colStyle = document.createElement("style");
+  document.head.appendChild(colStyle);
+  const applyTwoCol = () => { colStyle.textContent = GM_getValue(PREF_2COL, false) ? TWO_COL_CSS : ""; };
+  applyTwoCol();
 
   /* ─────────────────────────────────────
    * 2. 保持 BGM（切換視窗不中斷）
@@ -111,4 +121,18 @@
   });
 
   observer.observe(document.body, { childList: true, subtree: true });
+
+  /* ─────────────────────────────────────
+   * 4. 腳本選單：救援清單雙欄開關（Tampermonkey 圖示 → 本腳本）
+   * ───────────────────────────────────── */
+  if (typeof GM_registerMenuCommand === "function") {
+    let menuId;
+    const buildMenu = () => {
+      if (menuId != null && typeof GM_unregisterMenuCommand === "function") { try { GM_unregisterMenuCommand(menuId); } catch (e) {} }
+      const on = GM_getValue(PREF_2COL, false);
+      menuId = GM_registerMenuCommand((on ? "✅ 救援清單雙欄：開" : "⬜ 救援清單雙欄：關"),
+        () => { GM_setValue(PREF_2COL, !on); applyTwoCol(); buildMenu(); });
+    };
+    buildMenu();
+  }
 })();

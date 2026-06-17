@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         碧藍幻想小工具
 // @namespace    https://gist.github.com/biuuu
-// @version      0.4.0
+// @version      0.4.1
 // @description  碧藍幻想瀏覽器輔助工具：隱藏滾動條、側邊欄、聊天室、救援清單雙欄(可開關)、自動選取下拉選單、保持 BGM 播放等
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       biuuu (原作), kv (修改)
@@ -35,17 +35,16 @@
 
   /* 救援/搜尋清單雙欄（可從腳本選單開關，預設關）。不隱藏任何資訊。 */
   const PREF_2COL = "gbfTwoCol";
-  // 雙欄精簡：grid 強制兩欄；卡片縮成內容大小、保留原生 banner 底圖(background-size:100% 100%)。
-  // 不用 zoom(會讓 GBF 自訂點擊判定錯位、變難按)，改真正縮 CSS：HP 長條縮短+字 11px 自然塞進半格。
-  // 縮圖保留原本長方形(含難度框)、往左移一點、釘右下角。資訊全留。
+  // v0.3.2 外觀(灰底卡 + 縮圖右下 40px)，但不用 zoom——zoom 會讓 GBF 自訂點擊判定錯位變難按。
+  // 改用「縮 HP 長條(60px)+字 11px」達到同樣小尺寸，外觀幾乎一致但點擊正常。資訊全留。
   const TWO_COL_CSS =
     ".prt-raid-list{display:grid!important;grid-template-columns:repeat(2,1fr)!important;align-content:start!important;gap:4px!important;padding:4px!important}" +
-    ".prt-raid-list .lis-raid{position:relative!important;background-size:100% 100%!important;background-repeat:no-repeat!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;padding:4px 6px!important;margin:0!important;overflow:hidden;font-size:11px!important}" +
+    ".prt-raid-list .lis-raid{position:relative!important;background:rgba(30,22,22,.55)!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;padding:4px 6px!important;margin:0!important;border-radius:6px;overflow:hidden;font-size:11px!important}" +
     ".prt-raid-list .lis-raid .prt-raid-gauge{width:60px!important;min-width:0!important}" +
-    ".prt-raid-list .lis-raid .txt-raid-name{width:auto!important}" +
-    ".prt-raid-list .lis-raid .prt-request-info{padding-right:50px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}" +
-    ".prt-raid-list .lis-raid .prt-raid-thumbnail{position:absolute!important;right:10px!important;bottom:4px!important;width:auto!important;height:40px!important;min-width:0!important;margin:0!important;z-index:2}" +
-    ".prt-raid-list .lis-raid .img-raid-thumbnail{height:40px!important;width:auto!important;min-width:0!important}";
+    ".prt-raid-list .lis-raid .prt-raid-thumbnail{position:absolute!important;right:3px;bottom:3px;width:40px!important;height:auto!important;margin:0!important;z-index:1}" +
+    ".prt-raid-list .lis-raid .img-raid-thumbnail{width:40px!important;height:auto!important}" +
+    ".prt-raid-list .lis-raid .prt-request-info{padding-right:46px!important}" +
+    ".prt-raid-list .lis-raid .txt-raid-name{width:auto!important}";
   const colStyle = document.createElement("style");
   document.head.appendChild(colStyle);
   const applyTwoCol = () => { colStyle.textContent = GM_getValue(PREF_2COL, false) ? TWO_COL_CSS : ""; };

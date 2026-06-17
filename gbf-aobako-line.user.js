@@ -1,13 +1,17 @@
 // ==UserScript==
 // @name         碧藍幻想 青箱線提示
 // @namespace    gbf-aobako-line
-// @version      0.9.5
+// @version      0.10.0
 // @description  多人戰鬥中即時顯示「你的貢献度 vs 此本青箱線」兩排原生風工具條(可拖、文字可複製)，過線標✅；過線/滅団(隊伍全空圖)可推手機提醒(選用·走自架推播中心)。貢献度讀 .prt-mvp 自己那列(class=player)；本名自動掃 .cnt-raid-stage 文字比對；單顆 ⚙ 選單＝手動覆寫本名／認不出時列候選字串複製校正。線資料逐王內建並標明估計/確定/無青箱/無資料 + 來源。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @match        *://game.granbluefantasy.jp/*
 // @match        *://gbf.game.mbga.jp/*
 // @run-at       document-idle
 // @grant        GM_xmlhttpRequest
+// @grant        GM_registerMenuCommand
+// @grant        GM_unregisterMenuCommand
+// @grant        GM_setValue
+// @grant        GM_getValue
 // @connect      go.kvcc.me
 // @updateURL    https://raw.githubusercontent.com/lp250isme/gbf-tools/main/gbf-aobako-line.user.js
 // @downloadURL  https://raw.githubusercontent.com/lp250isme/gbf-tools/main/gbf-aobako-line.user.js
@@ -18,19 +22,25 @@
 
   /* ─────────────────────────────────────
    * 過線推播（選用）走自架推播中心 /api/notify（同 Codex/三CLI hook 那支）。
-   * NOTIFY_TOKEN 留空＝只顯示、不推。瀏覽器讀不到本機 token 檔，需手填。
+   * token 可由「腳本選單 → 🔑 設定推播 token」設定（存 GM，選單優先），
+   *   或填下方 NOTIFY_TOKEN 當預設。兩者皆空＝只顯示不推。
+   * 過線／滅団推播可各自從腳本選單開關（GM_registerMenuCommand）。
    * ⚠ 本檔在公開 repo，真實 token 只在你本機腳本管理器裡填，勿提交回來。
    * 後台契約：POST JSON { token, title, subtitle, body, group, sound, icon }。
    * ───────────────────────────────────── */
   const NOTIFY_API   = "https://go.kvcc.me/api/notify";
-  const NOTIFY_TOKEN = "";  // 你的推播中心 token（本機填，勿提交回 repo）
+  const NOTIFY_TOKEN = "";  // 預設 token（選單設定優先；本機填，勿提交回 repo）
   const NOTIFY_ICON  = "https://game.granbluefantasy.jp/favicon.ico"; // 想要品牌 icon 可換 go.kvcc.me/icon-gbf.png
+  const PREF = { token: "aobakoToken", over: "aobakoNotifyOver", wipe: "aobakoNotifyWipe" };
+  const getTok = () => (GM_getValue(PREF.token, "") || NOTIFY_TOKEN);
+  const isOn = (k) => GM_getValue(k, true);   // 推播開關，預設開（仍需有 token 才送）
   function notify(o) {
-    if (!NOTIFY_TOKEN) return;
+    const tok = getTok();
+    if (!tok) return;
     try {
       GM_xmlhttpRequest({
         method: "POST", url: NOTIFY_API, headers: { "Content-Type": "application/json" },
-        data: JSON.stringify(Object.assign({ token: NOTIFY_TOKEN, group: "GBF", sound: "glass", icon: NOTIFY_ICON }, o)),
+        data: JSON.stringify(Object.assign({ token: tok, group: "GBF", sound: "glass", icon: NOTIFY_ICON }, o)),
       });
     } catch {}
   }
@@ -277,7 +287,7 @@
           elVerdict.style.color = over ? "#7ee29a" : "#ffb454";
           if (over && notifiedHash !== location.hash) {   // 剛跨線：每場推一次
             notifiedHash = location.hash;
-            notify({ title: "🔵 青箱線突破", subtitle: "🐉 " + raid.key, body: "貢 " + fmtMan(contrib) + " / 線 " + fmtMan(raid.line) });
+            if (isOn(PREF.over)) notify({ title: "🔵 青箱線突破", subtitle: "🐉 " + raid.key, body: "貢 " + fmtMan(contrib) + " / 線 " + fmtMan(raid.line) });
           }
         } else { elVerdict.textContent = ""; }
       }
@@ -289,7 +299,7 @@
     if (wipeStreak >= 2) {                                   // 連 2 tick 全滅才算（避開開場載入瞬間的空圖）
       if (!wipeShown && Date.now() - lastWipeAt > 60000) {   // 邊緣 + 60s 冷卻：一場只推一次
         wipeShown = true; lastWipeAt = Date.now();
-        notify({ title: "💀 滅団", subtitle: "🐉 " + (raid ? raid.key : "多人本"),
+        if (isOn(PREF.wipe)) notify({ title: "💀 滅団", subtitle: "🐉 " + (raid ? raid.key : "多人本"),
           body: (contrib != null ? "貢 " + fmtMan(contrib) + " · " : "") + "全滅了，快回來" });
       }
     } else if (!wiped) { wipeShown = false; }
@@ -350,6 +360,24 @@
   window.addEventListener("hashchange", () => { detectCache = { hash: "", entry: undefined }; notifiedHash = ""; tick(); });
   addEventListener("resize", () => { if (!dragging) reposition(); }, { passive: true });
   tick();
+
+  /* ── Tampermonkey 腳本選單：推播開關 + token（同翻譯腳本那樣）── */
+  if (typeof GM_registerMenuCommand === "function") {
+    let ids = [];
+    const buildMenu = () => {
+      if (typeof GM_unregisterMenuCommand === "function") ids.forEach((id) => { try { GM_unregisterMenuCommand(id); } catch {} });
+      ids = [];
+      ids.push(GM_registerMenuCommand((isOn(PREF.over) ? "🔔 過線推播：開" : "🔕 過線推播：關"),
+        () => { GM_setValue(PREF.over, !isOn(PREF.over)); buildMenu(); }));
+      ids.push(GM_registerMenuCommand((isOn(PREF.wipe) ? "🔔 滅団推播：開" : "🔕 滅団推播：關"),
+        () => { GM_setValue(PREF.wipe, !isOn(PREF.wipe)); buildMenu(); }));
+      ids.push(GM_registerMenuCommand("🔑 設定推播 token",
+        () => { const v = prompt("貼上推播中心 token（留空＝清除，改用腳本內 NOTIFY_TOKEN）", GM_getValue(PREF.token, "")); if (v !== null) { GM_setValue(PREF.token, v.trim()); buildMenu(); } }));
+      ids.push(GM_registerMenuCommand("ℹ️ 推播狀態",
+        () => alert("token：" + (getTok() ? "已設定" : "未設定") + "\n過線推播：" + (isOn(PREF.over) ? "開" : "關") + "\n滅団推播：" + (isOn(PREF.wipe) ? "開" : "關"))));
+    };
+    buildMenu();
+  }
 })();
 
 /* ─────────────────────────────────────────────────────────

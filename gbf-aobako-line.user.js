@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         碧藍幻想 青箱線提示
 // @namespace    gbf-aobako-line
-// @version      0.8.1
+// @version      0.8.2
 // @description  多人戰鬥中即時顯示「你的貢献度 vs 此本青箱線」單列原生風工具條，過線標✅；過線/滅団可推手機提醒(選用·走自架推播中心)。貢献度讀 .prt-mvp 自己那列(class=player)；本名自動掃 .cnt-raid-stage 文字比對(認不出點🔍列候選字串，免 console)；⚙手動覆寫。線資料逐王內建並標明估計/確定/無青箱/無資料 + 來源。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @match        *://game.granbluefantasy.jp/*
@@ -35,13 +35,22 @@
   let notifiedHash = ""; // 已推過「過線」的戰鬥 hash（每場只推一次）
   let wipeShown = false; // 滅団彈窗是否正顯示中（邊緣觸發：隱藏→顯示才推一次）
 
-  // 滅団偵測：團滅畫面 .prt-lose / .txt-lose（「パーティが全滅した…。」實測 DOM）可見即翻車。
-  //   隱藏時 offsetParent 為 null；保險再比一次可見文字。
+  // 可見性判斷：吃得了 position:fixed（offsetParent 對 fixed 永遠 null，不能用它判）。
+  function isVisible(el) {
+    if (!el) return false;
+    const r = el.getBoundingClientRect();
+    if (r.width <= 0 || r.height <= 0) return false;
+    const s = getComputedStyle(el);
+    return s.display !== "none" && s.visibility !== "hidden" && +s.opacity !== 0;
+  }
+  // 滅団偵測：團滅畫面 .prt-lose / .txt-lose（「パーティが全滅した…。」實測 DOM）。
+  //   遍歷所有實例（有隱藏範本副本），任一「可見且含全滅/コンティニュー文字」即翻車。
   function isWiped() {
-    const el = document.querySelector(".prt-lose, .txt-lose");
-    if (el && el.offsetParent !== null && el.getBoundingClientRect().height > 4) return true;
-    const t = el && (el.textContent || "");
-    return !!(t && /全滅した/.test(t)) && el.offsetParent !== null;
+    const els = document.querySelectorAll(".prt-lose, .txt-lose");
+    for (const el of els) {
+      if (isVisible(el) && /全滅|コンティニュー/.test(el.textContent || "")) return true;
+    }
+    return false;
   }
 
   /* ─────────────────────────────────────────────────────────

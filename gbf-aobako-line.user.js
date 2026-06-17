@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         碧藍幻想 青箱線提示
 // @namespace    gbf-aobako-line
-// @version      0.9.4
+// @version      0.9.5
 // @description  多人戰鬥中即時顯示「你的貢献度 vs 此本青箱線」兩排原生風工具條(可拖、文字可複製)，過線標✅；過線/滅団(隊伍全空圖)可推手機提醒(選用·走自架推播中心)。貢献度讀 .prt-mvp 自己那列(class=player)；本名自動掃 .cnt-raid-stage 文字比對；單顆 ⚙ 選單＝手動覆寫本名／認不出時列候選字串複製校正。線資料逐王內建並標明估計/確定/無青箱/無資料 + 來源。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @match        *://game.granbluefantasy.jp/*
@@ -201,7 +201,7 @@
   // 握把（6 點，同捷徑列）—— 不可選取（拖曳用）
   const grip = document.createElement("div");
   grip.title = "拖曳移動";
-  grip.style.cssText = "flex:0 0 auto;cursor:grab;touch-action:none;display:flex;align-items:center;padding:0 2px 0 0;" + NOSEL;
+  grip.style.cssText = "flex:0 0 auto;box-sizing:border-box;height:18px;min-width:8px;padding:0 1px;display:flex;align-items:center;justify-content:center;cursor:grab;touch-action:none;background:transparent;" + NOSEL;
   grip.innerHTML = '<svg width="6" height="12" viewBox="0 0 6 12" fill="rgba(190,212,232,.6)" aria-hidden="true"><circle cx="1.5" cy="2" r="1"/><circle cx="4.5" cy="2" r="1"/><circle cx="1.5" cy="6" r="1"/><circle cx="4.5" cy="6" r="1"/><circle cx="1.5" cy="10" r="1"/><circle cx="4.5" cy="10" r="1"/></svg>';
 
   const mkSpan = (extra) => { const s = document.createElement("span"); s.style.cssText = "flex:0 0 auto;" + SEL + (extra || ""); return s; };
@@ -216,12 +216,12 @@
   const menuBtn = document.createElement("div");
   menuBtn.className = "aobako-btn";
   menuBtn.title = "選單：手動覆寫本名／認不出時列候選字串複製";
-  menuBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="rgba(215,235,247,.95)"><path d="M19.4 13c.04-.32.06-.66.06-1s-.02-.68-.07-1l2.11-1.63a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.3 7.3 0 0 0-1.73-1l-.38-2.65A.49.49 0 0 0 14 1h-4a.49.49 0 0 0-.49.42l-.38 2.65c-.63.25-1.2.59-1.73 1l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.64L4.57 11c-.05.32-.07.66-.07 1s.02.68.07 1l-2.11 1.63a.5.5 0 0 0-.12.64l2 3.46c.14.24.42.31.61.22l2.49-1c.53.41 1.1.75 1.73 1l.38 2.65c.05.24.25.42.49.42h4c.24 0 .45-.18.49-.42l.38-2.65c.63-.25 1.2-.59 1.73-1l2.49 1c.19.09.47.02.61-.22l2-3.46a.5.5 0 0 0-.12-.64L19.4 13zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg>';
-  menuBtn.style.cssText = "flex:0 0 auto;box-sizing:border-box;height:18px;padding:0 6px;display:flex;align-items:center;justify-content:center;background:" + NATIVE_BTN_BG + ";border:none;border-radius:5px;box-shadow:0 1px 2px rgba(0,0,0,.4);cursor:pointer;" + NOSEL;
+  menuBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="#d7ebf7" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>';
+  menuBtn.style.cssText = "flex:0 0 auto;box-sizing:border-box;width:18px;height:18px;padding:0;display:flex;align-items:center;justify-content:center;background:" + NATIVE_BTN_BG + ";border:none;border-radius:5px;box-shadow:0 1px 2px rgba(0,0,0,.4);cursor:pointer;" + NOSEL;
 
   // 左：握把＋⚙ 並排（同捷徑列）；右：本名／數值 兩排左對齊
   const ctrlRow = document.createElement("div");
-  ctrlRow.style.cssText = "display:flex;align-items:center;gap:5px;flex:0 0 auto";
+  ctrlRow.style.cssText = "display:flex;align-items:center;gap:3px;flex:0 0 auto";
   ctrlRow.append(grip, menuBtn);
   const statsRow = document.createElement("div");
   statsRow.style.cssText = "display:flex;align-items:center;gap:4px;white-space:nowrap";

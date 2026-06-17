@@ -34,7 +34,7 @@ Then open the `.user.js` you want and click **Raw** — the manager will prompt 
 | 🔇 Hide scrollbar | Removes the Webkit scrollbar |
 | 🚫 Hide Mobage sidebar | Hides the left Mobage nav bar |
 | 🗨️ Hide chat | Hides the in-game general chat |
-| 📏 Compact raid list | Scales rescue/multiplayer rows down so more fit per page (no info hidden) |
+| 📏 Two-column raid list | Two-column rescue/multiplayer list — more per page (cards scaled down, no info hidden) |
 | 📋 Copyable raid/room code | Select & copy raid/room codes directly |
 | 🎵 Keep BGM | BGM keeps playing across tab switches |
 | 💧 Drop-count menu | Prepends 15–11 to the count menu, defaults to 15 |

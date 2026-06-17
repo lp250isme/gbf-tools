@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         碧藍幻想小工具
 // @namespace    https://gist.github.com/biuuu
-// @version      0.1.8
+// @version      0.1.9
 // @description  碧藍幻想瀏覽器輔助工具：隱藏滾動條、側邊欄、聊天室、多人列表壓矮、自動選取下拉選單、保持 BGM 播放等
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       biuuu (原作), kv (修改)
@@ -28,7 +28,9 @@
   addStyle(`::-webkit-scrollbar { display: none; }`);                                         // 隱藏滾動條
   addStyle(`body>div:first-child>div:first-child>div:first-child[data-reactid]{display:none}`); // 隱藏 Mobage 側邊欄
   addStyle(`#general-chat { display: none !important; }`);                                     // 隱藏聊天室
-  addStyle(`.lis-raid{zoom:.75}`); // 救援/搜尋清單壓矮：整列等比縮小(.lis-raid 是固定 81px+banner 底圖,只能整體 zoom;全域涵蓋參戰/搜尋;不隱藏任何資訊;想更矮改數字)
+  // 救援/搜尋清單改雙欄：容器 flex-wrap，卡片等比縮小到兩張能並排(清單寬~320px、卡固定303px,故須 zoom~.5)。不隱藏資訊。
+  addStyle(`.prt-raid-list{display:flex!important;flex-wrap:wrap!important;justify-content:center!important;align-content:flex-start!important}`);
+  addStyle(`.prt-raid-list .lis-raid{zoom:.5;margin:3px!important}`);
   addStyle(`.txt-info-content, .txt-room-id, .prt-battle-id { user-select: text !important; }`); // 允許複製救援碼/房間號
 
   /* ─────────────────────────────────────

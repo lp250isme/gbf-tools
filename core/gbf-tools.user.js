@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         碧藍幻想小工具
 // @namespace    https://gist.github.com/biuuu
-// @version      0.2.0
+// @version      0.2.1
 // @description  碧藍幻想瀏覽器輔助工具：隱藏滾動條、側邊欄、聊天室、救援清單雙欄(可開關)、自動選取下拉選單、保持 BGM 播放等
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       biuuu (原作), kv (修改)
@@ -37,7 +37,8 @@
    * 卡片之間在任何 block 父層都會自動換行（容器無關，涵蓋新着/救援検索）；
    * zoom 縮到兩張並排（清單~320px、卡固定 303px，故 zoom~.5）。不隱藏任何資訊。 */
   const PREF_2COL = "gbfTwoCol";
-  const TWO_COL_CSS = ".lis-raid{display:inline-flex!important;vertical-align:top;zoom:.5;margin:3px!important}";
+  // 用 :has 抓「直接包著卡片的容器」(容器無關,不用猜 class)強制橫向 wrap；卡片 zoom 縮到兩張並排。
+  const TWO_COL_CSS = ":has(> .lis-raid){display:flex!important;flex-wrap:wrap!important;flex-direction:row!important;justify-content:center!important;align-content:flex-start!important}.lis-raid{zoom:.5;margin:3px!important}";
   const colStyle = document.createElement("style");
   document.head.appendChild(colStyle);
   const applyTwoCol = () => { colStyle.textContent = GM_getValue(PREF_2COL, false) ? TWO_COL_CSS : ""; };

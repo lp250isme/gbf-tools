@@ -33,9 +33,7 @@
   addStyle(`#general-chat { display: none !important; }`);                                     // 隱藏聊天室
   addStyle(`.txt-info-content, .txt-room-id, .prt-battle-id { user-select: text !important; }`); // 允許複製救援碼/房間號
 
-  /* 救援/搜尋清單雙欄（可從腳本選單開關，預設關）：卡片改 inline-flex——卡內版面不變，
-   * 卡片之間在任何 block 父層都會自動換行（容器無關，涵蓋新着/救援検索）；
-   * zoom 縮到兩張並排（清單~320px、卡固定 303px，故 zoom~.5）。不隱藏任何資訊。 */
+  /* 救援/搜尋清單雙欄（可從腳本選單開關，預設關）。不隱藏任何資訊。 */
   const PREF_2COL = "gbfTwoCol";
   // 用 :has 抓「直接包著卡片的容器」(容器無關,不用猜 class)強制橫向 wrap；卡片 zoom 縮到兩張並排。
   const TWO_COL_CSS = ":has(> .lis-raid){display:flex!important;flex-wrap:wrap!important;flex-direction:row!important;justify-content:center!important;align-content:flex-start!important}.lis-raid{zoom:.5;margin:3px!important}";

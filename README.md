@@ -23,7 +23,6 @@
 | `core/shortcut-bar-glass.user.js` | **捷徑列**（霜玻璃外觀）：可自訂按鈕的浮動工具列，可選雲端同步 |
 | `core/shortcut-bar-native.user.js` | 捷徑列（GBF 原生按鈕外觀）；與上者擇一裝 |
 | `core/gbf-translate.user.js` | **即時翻譯**：把 GBF 日文 DOM 文字即時翻成中文 |
-| `core/gbf-ua-iphone.user.js` | **iPhone UA 偽裝**：把 navigator 偽裝成 iPhone(iOS preset)，讓前端 UA 判斷當行動裝置(只改客戶端) |
 | `notify/kv/` ・ `notify/bark/` | **推播腳本**（青箱線／打完了／全滅／元氣）；依推播通道分兩資料夾，見下方 |
 
 ---

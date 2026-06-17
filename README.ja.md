@@ -23,7 +23,6 @@
 | `core/shortcut-bar-glass.user.js` | **ショートカットバー**（すりガラス風）：カスタムボタンの浮動バー、任意でクラウド同期 |
 | `core/shortcut-bar-native.user.js` | ショートカットバー（GBF 純正ボタン風）；どちらか一方を導入 |
 | `core/gbf-translate.user.js` | **リアルタイム翻訳**：GBF の日本語 DOM テキストをその場で翻訳 |
-| `core/gbf-ua-iphone.user.js` | **iPhone UA 偽装**：navigator を iPhone(iOS preset)に偽装し、フロント側 UA 判定をモバイル扱いに |
 | `notify/kv/` ・ `notify/bark/` | **通知スクリプト**（青箱ライン／戦闘終了／全滅／元気）；通知チャンネルで 2 フォルダに分割、下記参照 |
 
 ---

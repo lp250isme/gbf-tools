@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/logo.svg" alt="gbf-tools" width="120" height="120"></p>
+
 # 碧藍幻想小工具（gbf-tools）
 
 **繁體中文** ｜ [English](README.en.md) ｜ [日本語](README.ja.md)

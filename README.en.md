@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/logo.svg" alt="gbf-tools" width="120" height="120"></p>
+
 # Granblue Fantasy Tools (gbf-tools)
 
 [繁體中文](README.md) ｜ **English** ｜ [日本語](README.ja.md)

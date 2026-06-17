@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         碧藍幻想 青箱線提示
 // @namespace    gbf-aobako-line
-// @version      0.9.3
+// @version      0.9.4
 // @description  多人戰鬥中即時顯示「你的貢献度 vs 此本青箱線」兩排原生風工具條(可拖、文字可複製)，過線標✅；過線/滅団(隊伍全空圖)可推手機提醒(選用·走自架推播中心)。貢献度讀 .prt-mvp 自己那列(class=player)；本名自動掃 .cnt-raid-stage 文字比對；單顆 ⚙ 選單＝手動覆寫本名／認不出時列候選字串複製校正。線資料逐王內建並標明估計/確定/無青箱/無資料 + 來源。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @match        *://game.granbluefantasy.jp/*
@@ -9,6 +9,8 @@
 // @run-at       document-idle
 // @grant        GM_xmlhttpRequest
 // @connect      go.kvcc.me
+// @updateURL    https://raw.githubusercontent.com/lp250isme/gbf-tools/main/gbf-aobako-line.user.js
+// @downloadURL  https://raw.githubusercontent.com/lp250isme/gbf-tools/main/gbf-aobako-line.user.js
 // ==/UserScript==
 (function () {
   "use strict";
@@ -145,8 +147,9 @@
   let detectCache = { hash: "", entry: undefined };
   function detectRaid() {
     if (detectCache.hash === location.hash && detectCache.entry !== undefined) return detectCache.entry;
-    const root = battleRoot() || document.body;
-    const text = root.innerText || root.textContent || "";  // innerText＝只取「可見」文字，排除隱藏的召喚石名等(textContent 會誤抓→認錯本)；認出後即快取、不再每幀掃
+    const root = battleRoot();
+    if (!root) return null;  // 只掃 .cnt-raid-stage；不 fallback 整頁(整頁含本工具列/下拉全部本名→污染)
+    const text = root.innerText || root.textContent || "";  // innerText＝只取「可見」文字，排除隱藏的召喚石名；認出後即快取
     let found = null;
     for (const { e, a } of ALIAS_PAIRS) { if (text.includes(a)) { found = e; break; } }
     if (found) detectCache = { hash: location.hash, entry: found };

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         碧藍幻想小工具
 // @namespace    https://gist.github.com/biuuu
-// @version      0.4.7
+// @version      0.4.8
 // @description  碧藍幻想瀏覽器輔助工具：隱藏滾動條、側邊欄、聊天室、救援清單雙欄(可開關)、自動選取下拉選單、保持 BGM 播放等
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       biuuu (原作), kv (修改)
@@ -44,7 +44,7 @@
     ".prt-raid-list{display:grid!important;grid-template-columns:repeat(2,1fr)!important;align-content:start!important;gap:4px!important;padding:4px!important}" +
     ".prt-raid-list .lis-raid{position:relative!important;background:rgba(30,22,22,.55)!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;padding:3px 5px!important;margin:0!important;border-radius:6px;overflow:hidden}" +
     ".prt-raid-list .lis-raid *{font-size:9px!important}" +  /* 統一縮字,無 zoom→不破點擊 */
-    ".prt-raid-list .lis-raid .prt-raid-info{position:static!important;width:auto!important;margin:0!important;padding:0!important}" +
+    ".prt-raid-list .lis-raid .prt-raid-info{position:static!important;float:none!important;display:block!important;width:auto!important;margin:0!important;padding:0!important}" +
     ".prt-raid-list .lis-raid .txt-raid-name{width:auto!important;height:auto!important;line-height:1.2!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}" +
     ".prt-raid-list .lis-raid .prt-raid-status{display:flex!important;align-items:center!important;gap:4px!important;position:static!important;width:auto!important;margin:1px 0!important}" +  /* HP+BP 並排,不再重疊 */
     ".prt-raid-list .lis-raid .prt-raid-gauge{position:static!important;flex:1 1 auto!important;width:auto!important;min-width:0!important;margin:0!important}" +  /* HP 條吃滿剩餘寬→完整顯示(移除 60px 上限) */
@@ -55,8 +55,9 @@
     ".prt-raid-list .lis-raid .txt-request{font-size:0!important}" +  /* 隱「からの救援依頼」裸字,只留名字 */
     ".prt-raid-list .lis-raid .txt-request .txt-request-name{font-size:9px!important}" +
     ".prt-raid-list .lis-raid .ico-user-status{display:none!important}" +
-    ".prt-raid-list .lis-raid .prt-assist-comment{position:static!important;width:auto!important;box-sizing:border-box!important;margin:1px 0 0!important;padding:0 34px 0 0!important;float:none!important}" +  /* 留言收回正常流,排在求援者下方,右側留位給縮圖 */
-    ".prt-raid-list .lis-raid .txt-assist-comment{font-size:9px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}" +
+    ".prt-raid-list .lis-raid .prt-assist-comment{position:static!important;float:none!important;clear:both!important;display:block!important;width:auto!important;max-width:none!important;min-width:0!important;min-height:0!important;height:auto!important;margin:1px 0 0!important;padding:0 34px 0 0!important;background:none!important;border:0!important;box-shadow:none!important;border-radius:0!important;box-sizing:border-box!important}" +  /* 砍掉原生白色留言氣泡的底/框,收回正常流成一行純文字 */
+    ".prt-raid-list .lis-raid .prt-assist-comment::before,.prt-raid-list .lis-raid .prt-assist-comment::after{display:none!important}" +  /* 砍掉氣泡尖角 */
+    ".prt-raid-list .lis-raid .txt-assist-comment{font-size:9px!important;line-height:1.3!important;color:#ffe08a!important;background:none!important;margin:0!important;padding:0!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}" +
     ".prt-raid-list .lis-raid .prt-raid-thumbnail{position:absolute!important;right:3px!important;bottom:3px!important;width:30px!important;height:auto!important;margin:0!important}" +  /* 縮圖右下,不設 z-index→不蓋 button-cover 點擊 */
     ".prt-raid-list .lis-raid .img-raid-thumbnail{width:30px!important;height:auto!important}";
   const colStyle = document.createElement("style");

@@ -4,7 +4,7 @@
 
 **繁體中文** ｜ [English](README.en.md) ｜ [日本語](README.ja.md)
 
-針對 [碧藍幻想（Granblue Fantasy）](https://game.granbluefantasy.jp/) 網頁版的一組瀏覽器使用者腳本：介面優化、捷徑列、即時翻譯，以及「打完了／全滅／青箱線」等手機推播。各腳本**互相獨立**，挑需要的裝即可。
+針對 [碧藍幻想（Granblue Fantasy）](https://game.granbluefantasy.jp/) 網頁版（本家 `game.granbluefantasy.jp` 與 Mobage 版 `gbf.game.mbga.jp`）的一組瀏覽器使用者腳本：介面優化、捷徑列、即時翻譯，以及「打完了／全滅／青箱線」等手機推播。各腳本**互相獨立**，挑需要的裝即可。
 
 ## 致謝與聲明
 

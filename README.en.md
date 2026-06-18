@@ -4,7 +4,7 @@
 
 [繁體中文](README.md) ｜ **English** ｜ [日本語](README.ja.md)
 
-A set of browser userscripts for the web version of [Granblue Fantasy](https://game.granbluefantasy.jp/): UI tweaks, a shortcut bar, live translation, and phone push notifications for "battle done / party wiped / blue-chest line". Each script is **independent** — install only what you need.
+A set of browser userscripts for the web version of [Granblue Fantasy](https://game.granbluefantasy.jp/) — both the main site (`game.granbluefantasy.jp`) and the Mobage version (`gbf.game.mbga.jp`): UI tweaks, a shortcut bar, live translation, and phone push notifications for "battle done / party wiped / blue-chest line". Each script is **independent** — install only what you need.
 
 ## Credits & notice
 

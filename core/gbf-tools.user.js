@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         碧藍幻想小工具
 // @namespace    https://gist.github.com/biuuu
-// @version      0.4.6
+// @version      0.4.7
 // @description  碧藍幻想瀏覽器輔助工具：隱藏滾動條、側邊欄、聊天室、救援清單雙欄(可開關)、自動選取下拉選單、保持 BGM 播放等
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       biuuu (原作), kv (修改)
@@ -35,24 +35,30 @@
 
   /* 救援/搜尋清單雙欄（可從腳本選單開關，預設關）。不隱藏任何資訊。 */
   const PREF_2COL = "gbfTwoCol";
-  // v0.3.2 外觀(灰底卡 + 縮圖右下 40px)，但不用 zoom——zoom 會讓 GBF 自訂點擊判定錯位變難按。
-  // 改用「縮 HP 長條(60px)+字 11px」達到同樣小尺寸，外觀幾乎一致但點擊正常。資訊全留。
+  // 雙欄密集排版（依真實 DOM 對位）。一律不用 zoom 於點擊目標(.prt-button-cover)——只 BP 裝飾用,安全。
+  // 根因(v0.4.6→0.4.7)：.prt-raid-status 同時裝 HP 條(.prt-raid-gauge)+BP(.prt-use-ap)沿用原生定位，
+  // 我又把 gauge 砍成 60px→HP 沒全顯示、BP 疊在 HP 上；留言(.prt-assist-comment 是 .prt-raid-info 的兄弟、
+  // 原生絕對定位)被卡片 overflow:hidden 裁掉而消失。改法：status 改 flex 並排(HP flex:1 吃滿、BP 縮在後面
+  // 不重疊)，留言/求援者改 position:static 收回正常流往下排。
   const TWO_COL_CSS =
     ".prt-raid-list{display:grid!important;grid-template-columns:repeat(2,1fr)!important;align-content:start!important;gap:4px!important;padding:4px!important}" +
-    ".prt-raid-list .lis-raid{position:relative!important;background:rgba(30,22,22,.55)!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;padding:4px 6px!important;margin:0!important;border-radius:6px;overflow:hidden}" +
-    ".prt-raid-list .lis-raid *{font-size:9px!important}" +  /* 統一縮所有文字(蓋過本名 inline 12px 等),無 zoom→不破點擊 */
-    ".prt-raid-list .lis-raid .prt-raid-gauge{width:60px!important;min-width:0!important}" +
-    ".prt-raid-list .lis-raid .prt-use-ap{zoom:.6!important}" +  /* BP 紅點縮小(裝飾元素,非點擊目標,zoom 安全) */
-    ".prt-raid-list .lis-raid .prt-raid-thumbnail{position:absolute!important;right:3px;bottom:3px;width:40px!important;height:auto!important;margin:0!important;z-index:1}" +
-    ".prt-raid-list .lis-raid .img-raid-thumbnail{width:40px!important;height:auto!important}" +
-    ".prt-raid-list .lis-raid .prt-request-info{padding-right:46px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}" +
-    ".prt-raid-list .lis-raid .txt-request{font-size:0!important}" +  /* 把「からの救援依頼」裸文字塌成0,只留名字 */
-    ".prt-raid-list .lis-raid .txt-request .txt-request-name{font-size:8px!important}" +  /* 求援者名字再縮一點 */
-    ".prt-raid-list .lis-raid .ico-user-status{display:none!important}" +  /* 線上狀態小圖示隱藏(裝飾,非點擊目標) */
-    ".prt-raid-list .lis-raid .prt-request-info{padding-top:5px!important}" +  /* 求援者那列跟上面拉開一點,不要太貼 */
-    ".prt-raid-list .lis-raid .prt-assist-comment{position:static!important;width:50%!important;box-sizing:border-box!important;margin:0!important;padding:0!important;float:none!important;clear:both!important}" +  /* 留言塊脫離原生絕對定位→流到 request-info 下方,寬度配合半寬卡片→50%(靠左避開右下縮圖) */
-    ".prt-raid-list .lis-raid .txt-assist-comment{font-size:8px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}" +
-    ".prt-raid-list .lis-raid .txt-raid-name{width:auto!important}";
+    ".prt-raid-list .lis-raid{position:relative!important;background:rgba(30,22,22,.55)!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;padding:3px 5px!important;margin:0!important;border-radius:6px;overflow:hidden}" +
+    ".prt-raid-list .lis-raid *{font-size:9px!important}" +  /* 統一縮字,無 zoom→不破點擊 */
+    ".prt-raid-list .lis-raid .prt-raid-info{position:static!important;width:auto!important;margin:0!important;padding:0!important}" +
+    ".prt-raid-list .lis-raid .txt-raid-name{width:auto!important;height:auto!important;line-height:1.2!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}" +
+    ".prt-raid-list .lis-raid .prt-raid-status{display:flex!important;align-items:center!important;gap:4px!important;position:static!important;width:auto!important;margin:1px 0!important}" +  /* HP+BP 並排,不再重疊 */
+    ".prt-raid-list .lis-raid .prt-raid-gauge{position:static!important;flex:1 1 auto!important;width:auto!important;min-width:0!important;margin:0!important}" +  /* HP 條吃滿剩餘寬→完整顯示(移除 60px 上限) */
+    ".prt-raid-list .lis-raid .prt-use-ap{position:static!important;flex:0 0 auto!important;zoom:.5!important;margin:0!important}" +  /* BP 縮小排在 HP 後面(裝飾,非點擊目標,zoom 安全) */
+    ".prt-raid-list .lis-raid .prt-raid-subinfo{position:static!important;display:flex!important;gap:6px!important;margin:1px 0!important}" +
+    ".prt-raid-list .lis-raid .prt-request-info{position:static!important;width:auto!important;margin:1px 0 0!important;padding:0 34px 0 0!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}" +
+    ".prt-raid-list .lis-raid .img-job-icon{width:12px!important;height:auto!important;vertical-align:middle!important}" +
+    ".prt-raid-list .lis-raid .txt-request{font-size:0!important}" +  /* 隱「からの救援依頼」裸字,只留名字 */
+    ".prt-raid-list .lis-raid .txt-request .txt-request-name{font-size:9px!important}" +
+    ".prt-raid-list .lis-raid .ico-user-status{display:none!important}" +
+    ".prt-raid-list .lis-raid .prt-assist-comment{position:static!important;width:auto!important;box-sizing:border-box!important;margin:1px 0 0!important;padding:0 34px 0 0!important;float:none!important}" +  /* 留言收回正常流,排在求援者下方,右側留位給縮圖 */
+    ".prt-raid-list .lis-raid .txt-assist-comment{font-size:9px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}" +
+    ".prt-raid-list .lis-raid .prt-raid-thumbnail{position:absolute!important;right:3px!important;bottom:3px!important;width:30px!important;height:auto!important;margin:0!important}" +  /* 縮圖右下,不設 z-index→不蓋 button-cover 點擊 */
+    ".prt-raid-list .lis-raid .img-raid-thumbnail{width:30px!important;height:auto!important}";
   const colStyle = document.createElement("style");
   document.head.appendChild(colStyle);
   const applyTwoCol = () => { colStyle.textContent = GM_getValue(PREF_2COL, false) ? TWO_COL_CSS : ""; };

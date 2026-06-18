@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         碧藍幻想小工具
 // @namespace    https://gist.github.com/biuuu
-// @version      0.4.5
+// @version      0.4.6
 // @description  碧藍幻想瀏覽器輔助工具：隱藏滾動條、側邊欄、聊天室、救援清單雙欄(可開關)、自動選取下拉選單、保持 BGM 播放等
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       biuuu (原作), kv (修改)
@@ -42,13 +42,16 @@
     ".prt-raid-list .lis-raid{position:relative!important;background:rgba(30,22,22,.55)!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;padding:4px 6px!important;margin:0!important;border-radius:6px;overflow:hidden}" +
     ".prt-raid-list .lis-raid *{font-size:9px!important}" +  /* 統一縮所有文字(蓋過本名 inline 12px 等),無 zoom→不破點擊 */
     ".prt-raid-list .lis-raid .prt-raid-gauge{width:60px!important;min-width:0!important}" +
-    ".prt-raid-list .lis-raid .prt-use-ap{zoom:.72!important}" +  /* BP 紅點縮小(裝飾元素,非點擊目標,zoom 安全) */
+    ".prt-raid-list .lis-raid .prt-use-ap{zoom:.6!important}" +  /* BP 紅點縮小(裝飾元素,非點擊目標,zoom 安全) */
     ".prt-raid-list .lis-raid .prt-raid-thumbnail{position:absolute!important;right:3px;bottom:3px;width:40px!important;height:auto!important;margin:0!important;z-index:1}" +
     ".prt-raid-list .lis-raid .img-raid-thumbnail{width:40px!important;height:auto!important}" +
     ".prt-raid-list .lis-raid .prt-request-info{padding-right:46px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}" +
     ".prt-raid-list .lis-raid .txt-request{font-size:0!important}" +  /* 把「からの救援依頼」裸文字塌成0,只留名字 */
     ".prt-raid-list .lis-raid .txt-request .txt-request-name{font-size:8px!important}" +  /* 求援者名字再縮一點 */
     ".prt-raid-list .lis-raid .ico-user-status{display:none!important}" +  /* 線上狀態小圖示隱藏(裝飾,非點擊目標) */
+    ".prt-raid-list .lis-raid .prt-request-info{padding-top:5px!important}" +  /* 求援者那列跟上面拉開一點,不要太貼 */
+    ".prt-raid-list .lis-raid .prt-assist-comment{position:static!important;width:50%!important;box-sizing:border-box!important;margin:0!important;padding:0!important;float:none!important;clear:both!important}" +  /* 留言塊脫離原生絕對定位→流到 request-info 下方,寬度配合半寬卡片→50%(靠左避開右下縮圖) */
+    ".prt-raid-list .lis-raid .txt-assist-comment{font-size:8px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}" +
     ".prt-raid-list .lis-raid .txt-raid-name{width:auto!important}";
   const colStyle = document.createElement("style");
   document.head.appendChild(colStyle);

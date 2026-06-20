@@ -47,7 +47,7 @@ A floating bar of **custom shortcut buttons** (title + link) that jump straight 
 - **Two looks, install one** (same features): `core/shortcut-bar-glass.user.js` = frosted glass; `core/shortcut-bar-native.user.js` = GBF native button sprites. Same `@name`, so installing the other just reskins it and keeps your settings.
 - **Draggable**: grab the **⠿** handle, drop anywhere; position is remembered (local). Clamped back on-screen if dragged off.
 - **Categories**: shortcuts can have a group; with multiple groups a gold "cycle category" chip appears.
-- **Hotkeys**: bind a single key per shortcut (won't fire while typing in inputs).
+- **Hotkeys**: bind a single key per shortcut (won't fire while typing in inputs); **only the current category's hotkeys fire** — the same key can map to different shortcuts in different categories without clashing.
 - **Show toggle**: the ⚙ edit mode adds/edits/deletes/hides shortcuts (collapsed = just handle + ⚙).
 - **Local by default**: shortcuts live in the browser, no server.
 

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         碧藍幻想捷徑列（雲端同步）
 // @namespace    https://kvcc.me
-// @version      0.8.4
+// @version      0.8.5
 // @description  可自訂捷徑按鈕（標題＋連結）的浮動工具列：玻璃質感單列藥丸，抓握把拖到畫面任一處、放開記住位置(本機)；分類輪替鈕、單鍵快捷鍵（綁 Q 就按 Q）、⚙ 可開關顯示。預設純本機，可選填自架端點跨裝置同步（改了才推、按 ⟳ 手動拉）。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       kv
@@ -85,11 +85,22 @@
     if (/^[0-9]$/.test(k)) return code === "Digit" + k || code === "Numpad" + k || e.key === k;
     return (e.key || "").toLowerCase() === k.toLowerCase(); // 非英數鍵：退回字元比對
   }
+  // 目前生效的分類（與顯示邏輯一致）：>1 個分類時只認當前分類，單一分類則不限制。
+  function activeCat() {
+    const cats = [], seen = {};
+    cfg.items.forEach((it) => { const g = (it.g || "").trim(); if (!(g in seen)) { seen[g] = 1; cats.push(g); } });
+    if (cats.length <= 1) return null;
+    const saved = GM_getValue(CAT, "");
+    return cats.indexOf(saved) >= 0 ? saved : cats[0];
+  }
   document.addEventListener("keydown", (e) => {
     if (e.ctrlKey || e.altKey || e.metaKey) return;
     const ae = document.activeElement;
     if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA" || ae.tagName === "SELECT" || ae.isContentEditable)) return;
-    const it = cfg.items.find((x) => x.k && keyHit(e, x.k));
+    // 只觸發「目前所在分類」的快捷鍵：同一鍵在別分類也綁了也不會誤觸（UI 在 A 就只認 A 的）。
+    const cur = activeCat();
+    const pool = cur == null ? cfg.items : cfg.items.filter((x) => (x.g || "").trim() === cur);
+    const it = pool.find((x) => x.k && keyHit(e, x.k));
     if (it) { e.preventDefault(); e.stopPropagation(); go(it.h); }
   }, true);
 

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         碧藍幻想捷徑列（雲端同步）
 // @namespace    https://kvcc.me
-// @version      0.9.4
+// @version      0.9.5
 // @description  可自訂捷徑按鈕（標題＋連結）的浮動工具列：GBF 真·原生按鈕底圖（內嵌官方 sprite 切圖、深藍）單列，抓握把拖到畫面任一處、放開記住位置(本機)；分類輪替鈕、單鍵快捷鍵（綁 Q 就按 Q）、⚙ 可開關顯示。預設純本機，可選填自架端點跨裝置同步（改了才推、按 ⟳ 手動拉）。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       kv
@@ -24,9 +24,13 @@
    * 想同步：填「你自己的」端點與 token（不綁定任何服務；自架做法見 README）。
    * ⚠ 本檔在公開 repo，真實值只在你本機的腳本管理器裡填，勿提交回來。
    * ───────────────────────────────────── */
-  const SYNC_API   = "";  // 例：https://你的網域/api/cfg?k=gbf-shortcuts
-  const SYNC_TOKEN = "";  // 對應的 bearer token
-  const syncable = () => !!SYNC_API && !!SYNC_TOKEN;
+  // 桌面：可直接填 _SYNC_API_DEFAULT / _SYNC_TOKEN_DEFAULT。
+  // iOS GBF Shell：App 注入 window.__GBF_SHELL_SYNC__（選單輸入）；用函式讀取以便套用後不必重裝腳本。
+  const _SYNC_API_DEFAULT = "";
+  const _SYNC_TOKEN_DEFAULT = "";
+  const syncAPI = () => (window.__GBF_SHELL_SYNC__ && window.__GBF_SHELL_SYNC__.api) || _SYNC_API_DEFAULT;
+  const syncToken = () => (window.__GBF_SHELL_SYNC__ && window.__GBF_SHELL_SYNC__.token) || _SYNC_TOKEN_DEFAULT;
+  const syncable = () => !!syncAPI() && !!syncToken();
 
   const KEY = "kv_gbf_shortcuts";
   const CAT = "kv_gbf_cat";               // 目前選的分類（本機 UI 狀態，不同步）
@@ -49,14 +53,14 @@
     GM_setValue(KEY, JSON.stringify(cfg));
     if (!syncable()) return;
     GM_xmlhttpRequest({
-      method: "PUT", url: SYNC_API, data: JSON.stringify(cfg),
-      headers: { Authorization: "Bearer " + SYNC_TOKEN, "Content-Type": "application/json" },
+      method: "PUT", url: syncAPI(), data: JSON.stringify(cfg),
+      headers: { Authorization: "Bearer " + syncToken(), "Content-Type": "application/json" },
     });
   }
   function pull(cb) {                      // 手動同步：拉雲端，有資料就覆蓋重畫；cb(成功?)
     if (!syncable()) { cb && cb(false); return; }
     GM_xmlhttpRequest({
-      method: "GET", url: SYNC_API, headers: { Authorization: "Bearer " + SYNC_TOKEN },
+      method: "GET", url: syncAPI(), headers: { Authorization: "Bearer " + syncToken() },
       onload: (r) => {
         let ok = false;
         if (r.status === 200) {
@@ -69,11 +73,33 @@
     });
   }
 
-  /* ── 導航：完整網址換當前頁；GBF 內部路徑走 hash（不重整） ── */
+  /* ── 導航 ──
+   * gbf.game.mbga.jp / game.granbluefantasy.jp：只改 hash（SPA，與桌面相同）。
+   * 其他 host（平台 smart_auth 等）：回到 App 設定的首頁 origin（__GBF_SHELL_HOME__），
+   *   絕不可 hop 到另一個遊戲 domain——localStorage／捷徑設定是依 origin 分開的。
+   */
+  function shellHome() {
+    var h = (window.__GBF_SHELL_HOME__ || "https://gbf.game.mbga.jp") + "";
+    return h.replace(/\/$/, "");
+  }
   function go(h) {
     h = String(h).trim();
-    if (/^https?:\/\//i.test(h)) location.href = h;
-    else location.hash = h.replace(/^#?\/?/, "");
+    if (/^https?:\/\//i.test(h)) { location.href = h; return; }
+    var path = h.replace(/^#?\/?/, "");
+    var host = (location.hostname || "").toLowerCase();
+    var onBrowserGBF = host === "game.granbluefantasy.jp" || host === "gbf.game.mbga.jp";
+    if (onBrowserGBF) {
+      var cur = (location.hash || "").replace(/^#\/?/, "");
+      if (cur === path) {
+        location.hash = "#";
+        setTimeout(function () { location.hash = path; }, 0);
+      } else {
+        location.hash = path;
+      }
+      return;
+    }
+    // platform / auth / unknown → configured home (keep origin stable for bar storage)
+    location.href = shellHome() + "/#" + path;
   }
 
   // ── 快捷鍵：用「實體鍵位」e.code 比對（綁 Q ＝實體 Q 鍵）。
@@ -125,8 +151,9 @@
     ".kvc-chip:hover{filter:brightness(1.18)}" +
     ".kvc-chip:active{transform:scale(.94)}" +
     ".kvc-gear:active{transform:none}" +
-    ".kvc-bar{transition:box-shadow .18s ease}" +
-    ".kvc-bar.kvc-drag{box-shadow:0 12px 30px rgba(0,0,0,.6),inset 0 1px 0 rgba(120,150,175,.4)}" +
+    ".kvc-bar{transition:box-shadow .18s ease;touch-action:manipulation}" +
+    ".kvc-bar.kvc-drag{box-shadow:0 12px 30px rgba(0,0,0,.6),inset 0 1px 0 rgba(120,150,175,.4);touch-action:none}" +
+    ".kvc-grip{touch-action:none;-webkit-user-select:none;user-select:none}" +
     "@media(prefers-reduced-motion:reduce){.kvc-chip{transition:none}.kvc-chip:active{transform:none}.kvc-bar{transition:none}}";
   (document.head || document.documentElement).appendChild(st);
   const bar = document.createElement("div");
@@ -164,11 +191,19 @@
   function render() {
     bar.innerHTML = "";
     const top = mkBand();                                  // 左側控制群組（拖曳握把＋⚙…）
-    const grip = mkChip("", 8, { cursor: "grab", touchAction: "none", background: "transparent", border: "1px solid transparent", boxShadow: "none", textShadow: "none", padding: "0 1px" });
-    grip.innerHTML = '<svg width="6" height="12" viewBox="0 0 6 12" fill="rgba(190,212,232,.6)" aria-hidden="true"><circle cx="1.5" cy="2" r="1"/><circle cx="4.5" cy="2" r="1"/><circle cx="1.5" cy="6" r="1"/><circle cx="4.5" cy="6" r="1"/><circle cx="1.5" cy="10" r="1"/><circle cx="4.5" cy="10" r="1"/></svg>';
+    // 握把加寬：左緣好抓；touch-action:none 避免被 WKWebView 邊緣滑上一頁搶走。
+    const grip = mkChip("", 18, {
+      cursor: "grab", touchAction: "none", background: "transparent",
+      border: "1px solid transparent", boxShadow: "none", textShadow: "none",
+      padding: "0 4px", minWidth: "18px", height: "22px",
+    });
+    grip.classList.add("kvc-grip");
+    grip.innerHTML = '<svg width="8" height="14" viewBox="0 0 8 14" fill="rgba(190,212,232,.75)" aria-hidden="true"><circle cx="2" cy="2" r="1.2"/><circle cx="6" cy="2" r="1.2"/><circle cx="2" cy="7" r="1.2"/><circle cx="6" cy="7" r="1.2"/><circle cx="2" cy="12" r="1.2"/><circle cx="6" cy="12" r="1.2"/></svg>';
     grip.title = "拖曳移動捷徑列";
-    grip.addEventListener("pointerdown", startDrag);       // 只認握把拖曳，不跟捷徑/輸入框搶事件
-    top.appendChild(grip);                                 // 握把永遠在（連收合成 ⚙ 時也能拖）
+    grip.addEventListener("pointerdown", startDrag, { capture: true });
+    // iOS：非 passive touchstart 才能 preventDefault，擋住邊緣返回手勢。
+    grip.addEventListener("touchstart", (ev) => { ev.stopPropagation(); }, { capture: true, passive: true });
+    top.appendChild(grip);
     const gear = mkChip(editing ? "✓" : "", 18, editing ? { background: "linear-gradient(to bottom,#e8cd7a,#bd9636)", border: "1px solid #6e5113", color: "#241a06", textShadow: "0 1px 0 rgba(255,245,210,.5)", boxShadow: "inset 0 1px 0 rgba(255,245,210,.6),inset 0 -1px 1px rgba(0,0,0,.35)", padding: "0", width: "18px" } : { padding: "0", width: "18px" });
     if (!editing) gear.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="#d7ebf7" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>';
     gear.classList.add("kvc-gear");                        // 換字鈕：CSS 排除 scale，避免 iOS 換字疊影
@@ -287,18 +322,32 @@
 
   /* ── 位置：自由浮動、抓握把可拖、記住位置（本機 GM，不同步——各裝置螢幕尺寸不同） ── */
   const POS = "kv_gbf_pos";                 // 工具列左上角座標 {x,y}（viewport 座標、本機 UI 狀態）
-  const MARGIN = 6;                         // 夾進畫面時跟邊緣留的縫
+  const MARGIN = 10;                        // 跟邊緣留縫（略加大，少踩左緣返回手勢）
   let dragging = false;
   let pos = (() => { try { const p = JSON.parse(GM_getValue(POS, "null")); return (p && isFinite(p.x) && isFinite(p.y)) ? p : null; } catch { return null; } })();
+
+  // iOS GBF Shell：拖曳時請原生關掉 allowsBackForwardNavigationGestures（左緣滑上一頁）。
+  function notifyShellDrag(active) {
+    try {
+      if (window.webkit && webkit.messageHandlers && webkit.messageHandlers.gbfBar) {
+        webkit.messageHandlers.gbfBar.postMessage({ type: "drag", active: !!active });
+      }
+    } catch (e) {}
+  }
+
   function clampPos(x, y) {                  // 夾進畫面：拖到哪都不會掉出視窗、找不回來
     const bw = bar.offsetWidth, bh = bar.offsetHeight;
     const maxX = Math.max(MARGIN, window.innerWidth  - bw - MARGIN);
     const maxY = Math.max(MARGIN, window.innerHeight - bh - MARGIN);
     return { x: Math.min(Math.max(x, MARGIN), maxX), y: Math.min(Math.max(y, MARGIN), maxY) };
   }
-  function applyPos() {                      // 把目前(或預設左下)位置貼上去，並夾回畫面
+  function applyPos() {                      // 把目前(或預設右下)位置貼上去，並夾回畫面
     bar.style.maxWidth = (window.innerWidth - 2 * MARGIN) + "px"; // 不超出畫面寬；超過才讓黑底 band 換行
-    if (!pos) pos = { x: MARGIN, y: window.innerHeight - bar.offsetHeight - MARGIN }; // 首次預設：左下角
+    if (!pos) {
+      // 預設右下：避開 iOS 左緣「上一頁」手勢熱區。
+      const bw = bar.offsetWidth || 160;
+      pos = { x: Math.max(MARGIN, window.innerWidth - bw - MARGIN), y: window.innerHeight - (bar.offsetHeight || 28) - MARGIN - 48 };
+    }
     pos = clampPos(pos.x, pos.y);
     bar.style.left = pos.x + "px"; bar.style.top = pos.y + "px";
     bar.style.right = "auto"; bar.style.bottom = "auto";
@@ -312,23 +361,63 @@
   function startDrag(e) {                    // pointer 事件一套吃滑鼠＋觸控；只在握把上觸發
     if (e.button != null && e.button !== 0) return;          // 只認主鍵
     e.preventDefault();
+    e.stopPropagation();
     const r = bar.getBoundingClientRect();
     const offX = e.clientX - r.left, offY = e.clientY - r.top;
-    dragging = true; bar.classList.add("kvc-drag");        // 拖曳中陰影抬高，回饋手感
-    const move = (ev) => { const p = clampPos(ev.clientX - offX, ev.clientY - offY); bar.style.left = p.x + "px"; bar.style.top = p.y + "px"; };
-    const up = () => {
-      dragging = false; bar.classList.remove("kvc-drag");
+    dragging = true;
+    bar.classList.add("kvc-drag");
+    bar.style.cursor = "grabbing";
+    notifyShellDrag(true);                   // 殼：暫時關掉邊緣上一頁
+    try {
+      if (e.currentTarget && e.pointerId != null) {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      }
+    } catch (err) {}
+
+    const move = (ev) => {
+      if (!dragging) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      const p = clampPos(ev.clientX - offX, ev.clientY - offY);
+      bar.style.left = p.x + "px";
+      bar.style.top = p.y + "px";
+    };
+    const up = (ev) => {
+      if (ev) { try { ev.preventDefault(); ev.stopPropagation(); } catch (e2) {} }
+      dragging = false;
+      bar.classList.remove("kvc-drag");
+      bar.style.cursor = "";
       document.removeEventListener("pointermove", move, true);
       document.removeEventListener("pointerup", up, true);
+      document.removeEventListener("pointercancel", up, true);
+      document.removeEventListener("touchmove", blockTouchScroll, true);
+      notifyShellDrag(false);
       pos = clampPos(parseFloat(bar.style.left) || MARGIN, parseFloat(bar.style.top) || MARGIN);
       bar.style.left = pos.x + "px"; bar.style.top = pos.y + "px";
-      GM_setValue(POS, JSON.stringify(pos));                 // 放開存位置（本機）
+      GM_setValue(POS, JSON.stringify(pos));
+    };
+    // 非 passive：才能 preventDefault，避免 WKWebView 當成邊緣返回／捲動。
+    const blockTouchScroll = (ev) => {
+      if (!dragging) return;
+      ev.preventDefault();
+      ev.stopPropagation();
     };
     document.addEventListener("pointermove", move, true);
     document.addEventListener("pointerup", up, true);
+    document.addEventListener("pointercancel", up, true);
+    document.addEventListener("touchmove", blockTouchScroll, { capture: true, passive: false });
   }
 
   document.body.append(bar, back, card);
-  render(); reposition(); setInterval(reposition, 600);    // 週期：補掛回 DOM、夾回畫面（拖曳中跳過）
-  addEventListener("resize", () => { if (!dragging) applyPos(); }, { passive: true }); // 轉向/縮放後夾回畫面
+  render(); reposition();
+  // 效能：不 setInterval；只在轉向／可見性變化時重貼位置。
+  addEventListener("resize", () => { if (!dragging) applyPos(); }, { passive: true });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && !dragging) reposition(); }, { passive: true });
+
+  // 對外：殼層可呼叫；進頁後若有同步設定拉一次（跨裝置／換 origin 後還原捷徑，非預設四顆）。
+  window.__kvBarPull = pull;
+  window.__kvBarSyncInfo = () => ({ api: syncAPI(), syncable: syncable() });
+  if (syncable()) {
+    pull(function () {});
+  }
 })();

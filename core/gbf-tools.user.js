@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         碧藍幻想小工具
 // @namespace    https://gist.github.com/biuuu
-// @version      0.5.0
+// @version      0.5.1
 // @description  碧藍幻想瀏覽器輔助工具：隱藏滾動條、側邊欄、聊天室、自動選取下拉選單、保持 BGM 播放等
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       biuuu (原作), kv (修改)
@@ -62,7 +62,10 @@
     handler(el);
   };
 
-  const observer = new MutationObserver(() => {
+  // 效能：DOM 狂變時合併到每幀最多跑一次，降低戰鬥中 main-thread 壓力。
+  let moScheduled = false;
+  const runPatches = () => {
+    moScheduled = false;
     if (paused) return;
 
     // 3-a. 水滴選單：補上 15~11 選項，預設選 15
@@ -105,6 +108,12 @@
         }
       });
     }
+  };
+
+  const observer = new MutationObserver(() => {
+    if (paused || moScheduled) return;
+    moScheduled = true;
+    requestAnimationFrame(runPatches);
   });
 
   observer.observe(document.body, { childList: true, subtree: true });

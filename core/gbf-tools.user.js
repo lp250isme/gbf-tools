@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         碧藍幻想小工具
 // @namespace    https://gist.github.com/biuuu
-// @version      0.5.1
+// @version      0.5.2
 // @description  碧藍幻想瀏覽器輔助工具：隱藏滾動條、側邊欄、聊天室、自動選取下拉選單、保持 BGM 播放等
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       biuuu (原作), kv (修改)
@@ -116,5 +116,19 @@
     requestAnimationFrame(runPatches);
   });
 
-  observer.observe(document.body, { childList: true, subtree: true });
+  // 戰鬥中（#raid／#raid_multi／#semiraid／#solo/raid，result 不算）不會出現這三種選單，
+  // 整個停掉 observer，省下戰鬥每幀的全 DOM 異動回呼；離開戰鬥再接回並補跑一次。
+  const inBattle = () => /^#\/?(raid|semiraid|solo\/raid)/i.test(location.hash);
+  let observing = false;
+  const syncObserver = () => {
+    if (inBattle()) {
+      if (observing) { observer.disconnect(); observing = false; }
+    } else if (!observing) {
+      observer.observe(document.body, { childList: true, subtree: true });
+      observing = true;
+      if (!moScheduled) { moScheduled = true; requestAnimationFrame(runPatches); }
+    }
+  };
+  window.addEventListener("hashchange", syncObserver);
+  syncObserver();
 })();

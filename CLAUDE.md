@@ -15,7 +15,8 @@ notify/
   kv/   走 kv 推播中心 POST go.kvcc.me/api/notify
     gbf-done.user.js         打完了(#result_multi + .pop-rematch-fail)/全滅
     gbf-aobako-line.user.js  青箱線工具條 + 過線/滅団推播
-    gbf-genki-notify.user.js 元氣回滿(排程式;Bark 無對等,故只在 kv/)
+    gbf-genki-notify.user.js 元氣回滿(舊版讀 DOM;排程式;Bark 無對等,故只在 kv/)
+    gbf-helper.user.js       GBF 助手:讀 API 回應推元氣/探検隊/AP/日課;Tampermonkey＋Surge 共用一支(Surge 版 copy 到 iCloud Surge Scripts/gbf-helper.js);測試 node notify/kv/gbf-helper.test.mjs
   bark/ 走 Bark api.day.app
     gbf-done.user.js / gbf-aobako-line.user.js
 assets/logo.svg              repo logo(玻璃藍齒輪)

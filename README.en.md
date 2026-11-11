@@ -78,7 +78,8 @@ Battle-related phone push, split into two folders by **push channel** — **inst
 |---|---|:--:|:--:|
 | `gbf-done.user.js` | **Battle done** (result screen / boss killed by others) + **party wiped** push | ✅ | ✅ |
 | `gbf-aobako-line.user.js` | **Blue-chest line**: in-battle bar showing "your honors vs this raid's blue-chest line", marks ✅ when crossed; can push on "crossed / wiped" | ✅ | ✅ |
-| `gbf-genki-notify.user.js` | **Energy refilled**: pushes when expedition energy is full (**scheduled** — arrives even with the browser closed) | ✅ | — |
+| `gbf-helper.user.js` | **GBF helper**: reads game API responses (read-only) and pushes energy full / expedition back / AP full / dailies unfinished at 22:00 (UTC+8); PC and phone (Surge) share one state, and the same file runs as a Surge script with a home-screen panel | ✅ | — |
+| `gbf-genki-notify.user.js` | **Energy refilled** (legacy, reads on-screen numbers; prefer GBF helper): pushes when expedition energy is full (**scheduled** — arrives even with the browser closed) | ✅ | — |
 
 > Energy is a scheduled push (compute the refill time → post to a self-hosted scheduler → fires later), which is inherently the kv self-hosted setup; Bark has no equivalent "fire on a timer while closed", so it lives only in `notify/kv/`.
 

@@ -99,8 +99,9 @@ function surge(mode, { store = {}, url, body, http = {} } = {}) {
     $persistentStore: { read: (k) => store[k], write: (v, k) => { store[k] = v; return true; } },
     $httpClient: Object.fromEntries(['get', 'put', 'post'].map((m) => [m, (o, cb) => {
       calls.push({ m, url: o.url, auth: o.headers.Authorization, body: o.body && JSON.parse(o.body) });
-      const r = (http[m] || (() => ({})))(o);
-      cb(null, { status: 200 }, JSON.stringify(r));
+      const r = (http[m] || (() => ({})))(o, store);
+      const status = (r && r.__status) || 200;
+      cb(status >= 400 ? `HTTP ${status}` : null, { status }, JSON.stringify(r));
     }])),
     $done: (r) => { done = r ?? true; },
   };
@@ -138,17 +139,55 @@ function surge(mode, { store = {}, url, body, http = {} } = {}) {
   // 再跑一次沒新資料：完全不打網路
   assert.equal(surge('cron', { store: c.store }).calls.length, 0);
 
-  // 同一個回滿時刻不重排；變了才重排
-  const again = surge('response', { store: c.store, url: 'https://gbf.game.mbga.jp/rest/vyrnsampo/stamina_info_list', body: '[{"max_stamina":100,"current_stamina":3,"recovery_remain_time":600}]' });
+  // 每次看到都重排（推播中心同 key 覆寫）：兩台交錯時最後看到的那台說了算，不靠本機去重
+  const genkiBody = (cur, sec) => `[{"max_stamina":100,"current_stamina":${cur},"recovery_remain_time":${sec}}]`;
+  const SL = 'https://gbf.game.mbga.jp/rest/vyrnsampo/stamina_info_list';
+  const again = surge('response', { store: c.store, url: SL, body: genkiBody(3, 600) });
   const c2 = surge('cron', { store: again.store, http: { get: () => cloud } });
-  assert.equal(c2.calls.filter((x) => x.url.endsWith('/api/schedule')).length, 0);
+  assert.equal(c2.calls.filter((x) => x.url.endsWith('/api/schedule')).length, 1);
+  assert.equal(c2.calls.filter((x) => x.m === 'put').length, 0);    // 沒到 10 分、也不是大變動：先不寫雲端
+  assert.equal(c2.store['gbf-helper.dirty'], '1');                    // 但記著還要寫
 
-  // 滿了 → 取消一次，之後不重複取消
-  const full = surge('response', { store: c2.store, url: 'https://gbf.game.mbga.jp/rest/vyrnsampo/stamina_info_list', body: '[{"max_stamina":100,"current_stamina":100,"recovery_remain_time":0}]' });
+  // 滿了 → 取消（每次看到都送，冪等）
+  const full = surge('response', { store: c2.store, url: SL, body: genkiBody(100, 0) });
   const c3 = surge('cron', { store: full.store, http: { get: () => cloud } });
   assert.deepEqual(c3.calls.filter((x) => x.url.endsWith('/api/schedule')).map((x) => x.body), [{ key: 'gbf-genki', cancel: true }]);
-  const full2 = surge('response', { store: c3.store, url: 'https://gbf.game.mbga.jp/rest/vyrnsampo/stamina_info_list', body: '[{"max_stamina":100,"current_stamina":100,"recovery_remain_time":0}]' });
-  assert.equal(surge('cron', { store: full2.store, http: { get: () => cloud } }).calls.filter((x) => x.url.endsWith('/api/schedule')).length, 0);
+
+  // 雲端讀不到：什麼都不送、不清，下次再試（不能把對方的資料當成空的蓋掉）
+  const o1 = surge('response', { url: SL, body: genkiBody(5, 900), store: { 'gbf-helper.token': 'tok' } });
+  const g1 = surge('cron', { store: o1.store, http: { get: () => ({ __status: 503 }) } });
+  assert.equal(g1.calls.length, 1);
+  assert.equal(g1.store['gbf-helper.dirty'], '1');
+  assert.ok(JSON.parse(g1.store['gbf-helper.touched']).genki);
+
+  // 排推播失敗：保留待處理，下一輪重送
+  const g2 = surge('cron', { store: g1.store, http: { get: () => cloud, post: () => ({ __status: 500 }) } });
+  assert.ok(JSON.parse(g2.store['gbf-helper.touched']).genki);
+  assert.equal(g2.store['gbf-helper.dirty'], '1');
+  const g3 = surge('cron', { store: g2.store, http: { get: () => cloud } });
+  assert.equal(g3.calls.filter((x) => x.url.endsWith('/api/schedule')).length, 1);
+  assert.equal(JSON.parse(g3.store['gbf-helper.touched']).genki, undefined);
+
+  // 同步途中遊戲又回了新資料：不能被這輪蓋掉，也不能被當成處理過
+  const o2 = surge('response', { url: SL, body: genkiBody(5, 900), store: { 'gbf-helper.token': 'tok' } });
+  const r2 = surge('cron', { store: o2.store, http: { get: (_o, st) => {
+    const now2 = T0 + 1;
+    const cur = JSON.parse(st['gbf-helper.state']);
+    cur.ap = { cur: 60, max: 215, seen: now2, src: '手機' };
+    st['gbf-helper.state'] = JSON.stringify(cur);
+    st['gbf-helper.touched'] = JSON.stringify({ ...JSON.parse(st['gbf-helper.touched']), ap: now2 });
+    return cloud;
+  } } });
+  assert.equal(JSON.parse(r2.store['gbf-helper.state']).ap.cur, 60);
+  assert.ok(JSON.parse(r2.store['gbf-helper.touched']).ap);
+  assert.equal(JSON.parse(r2.store['gbf-helper.touched']).genki, undefined);
+  assert.equal(r2.store['gbf-helper.dirty'], '1');
+
+  // 寫雲端失敗：不更新 syncedAt、保留 dirty
+  const o3 = surge('response', { url: SL, body: genkiBody(5, 900), store: { 'gbf-helper.token': 'tok' } });
+  const p3 = surge('cron', { store: o3.store, http: { get: () => cloud, put: () => ({ __status: 500 }) } });
+  assert.equal(p3.store['gbf-helper.syncedAt'] || '', '');
+  assert.equal(p3.store['gbf-helper.dirty'], '1');
 
   // 面板：讀雲端畫出來
   const p = surge('panel', { store: { 'gbf-helper.token': 'tok' }, http: { get: () => ({ genki: { cur: 50, max: 100, fullAt: T0 + 60000, seen: T0 } }) } });

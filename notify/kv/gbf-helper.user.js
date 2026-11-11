@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         碧藍幻想 GBF 助手（元氣／探検隊／AP／日課）
 // @namespace    https://kvcc.me
-// @version      0.1.0
+// @version      0.1.1
 // @description  只讀遊戲 API 回應：元氣回滿、探検隊回來、AP 回滿、日課沒做完（22:00）推播；電腦與手機共用同一份狀態。同一支也能當 Surge 腳本（手機首頁面板）。需在腳本選單設 token。
 // @icon         http://game.granbluefantasy.jp/favicon.ico
 // @author       kv
@@ -158,42 +158,40 @@ function eventful(prev, part) {
   if (part.genki && (!prev.genki || Math.abs(prev.genki.fullAt - part.genki.fullAt) > 600000)) return true;
   return false;
 }
+// 每次都對「這輪看到的區塊」重排／取消，不在本機去重：推播中心同 key 覆寫，兩台交錯時最後看到的那台說了算
+// （排程只打推播中心、不寫 KV）。失敗一律保留待處理，下一輪重試。
 function sync(env, cb) {
   const token = env.load('token');
   if (!token) return cb();
   const now = Date.now();
-  const local = env.loadJSON('state') || {};
-  const touched = env.loadJSON('touched') || {}; // 這輪新看到的區塊 → 只規劃這些
-  env.http('GET', `/api/cfg?k=${CFG_KEY}`, null, token, (cloud) => {
-    const state = merge(cloud && typeof cloud === 'object' ? cloud : {}, local);
+  const touched0 = env.loadJSON('touched') || {}; // 這輪要處理的區塊 → 觀測時間
+  env.http('GET', `/api/cfg?k=${CFG_KEY}`, null, token, (cloud, ok) => {
+    if (!ok) return cb(); // 讀不到雲端：不能當成空的去蓋，什麼都不清
+    const state = merge(cloud && typeof cloud === 'object' ? cloud : {}, env.loadJSON('state') || {});
     const want = plan(state, now);
-    const sent = env.loadJSON('sched') || {};
-    const jobs = [];
+    const failed = {};
+    const steps = [];
     for (const k of Object.keys(want)) {
-      if (!touched[k]) continue;
-      const w = want[k];
-      if (w && !(typeof sent[k] === 'number' && Math.abs(sent[k] - w.fireAt) <= 90000)) {
-        jobs.push({ key: `gbf-${k}`, ...w, group: 'GBF' });
-        sent[k] = w.fireAt;
-      } else if (!w && sent[k] !== 'x') {
-        jobs.push({ key: `gbf-${k}`, cancel: true });
-        sent[k] = 'x';
-      }
+      if (!touched0[k]) continue;
+      const job = want[k] ? { key: `gbf-${k}`, ...want[k], group: 'GBF' } : { key: `gbf-${k}`, cancel: true };
+      steps.push((next) => env.http('POST', '/api/schedule', job, token, (_r, ok2) => { if (!ok2) failed[k] = 1; next(); }));
     }
-    const wantPut = env.load('force') === '1' || now - Number(env.load('syncedAt') || 0) >= SYNC_EVERY_MS;
-    const steps = jobs.map((j) => (next) => env.http('POST', '/api/schedule', j, token, () => next()));
-    if (wantPut) {
-      steps.push((next) => env.http('PUT', `/api/cfg?k=${CFG_KEY}`, { ...state, updated: now, src: env.device }, token, () => {
-        env.save('syncedAt', String(now));
-        env.save('force', '');
-        next();
-      }));
+    const putDue = env.load('force') === '1' || now - Number(env.load('syncedAt') || 0) >= SYNC_EVERY_MS;
+    let putOk = false;
+    if (putDue) {
+      steps.push((next) => env.http('PUT', `/api/cfg?k=${CFG_KEY}`, { ...state, updated: now, src: env.device }, token, (_r, ok3) => { putOk = ok3; next(); }));
     }
-    env.saveJSON('state', state);
-    env.saveJSON('sched', sent);
-    env.saveJSON('touched', {});
-    env.save('dirty', '');
-    const run = (i) => (i < steps.length ? steps[i](() => run(i + 1)) : cb());
+    const finish = () => {
+      // 同步途中又有新觀測：以本機最新的為準再合併；只清掉這輪成功、而且之後沒再被碰過的區塊
+      env.saveJSON('state', merge(state, env.loadJSON('state') || {}));
+      const t = env.loadJSON('touched') || {};
+      for (const k of Object.keys(touched0)) if (!failed[k] && t[k] === touched0[k]) delete t[k];
+      env.saveJSON('touched', t);
+      if (putOk) { env.save('syncedAt', String(now)); env.save('force', ''); }
+      env.save('dirty', putOk && !Object.keys(t).length ? '' : '1'); // 沒寫成雲端（沒到時間或失敗）就留著
+      cb();
+    };
+    const run = (i) => (i < steps.length ? steps[i](() => run(i + 1)) : finish());
     run(0);
   });
 }
@@ -206,7 +204,7 @@ function observe(env, url, body) {
   const prev = env.loadJSON('state') || {};
   env.saveJSON('state', merge(prev, part));
   const touched = env.loadJSON('touched') || {};
-  for (const k of keys) touched[k] = 1;
+  for (const k of keys) touched[k] = now;
   env.saveJSON('touched', touched);
   if (eventful(prev, part)) env.save('force', '1');
   env.save('dirty', '1');
@@ -225,10 +223,11 @@ function surgeEnv() {
     http: (method, path, body, token, cb) => {
       const opt = { url: API + path, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, timeout: 10 };
       if (body) opt.body = JSON.stringify(body);
-      $httpClient[method.toLowerCase()](opt, (err, _r, data) => {
+      $httpClient[method.toLowerCase()](opt, (err, r, data) => {
+        const ok = !err && r && r.status >= 200 && r.status < 300;
         let j = null;
-        try { j = err ? null : JSON.parse(data); } catch (e) {}
-        cb(j);
+        try { j = ok ? JSON.parse(data) : null; } catch (e) {}
+        cb(j, ok);
       });
     },
   };
@@ -264,15 +263,29 @@ function runUserscript() {
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       data: body ? JSON.stringify(body) : undefined,
       timeout: 10000,
-      onload: (r) => { let j = null; try { j = JSON.parse(r.responseText); } catch (e) {} cb(j); },
-      onerror: () => cb(null), ontimeout: () => cb(null),
+      onload: (r) => {
+        const ok = r.status >= 200 && r.status < 300;
+        let j = null;
+        try { j = ok ? JSON.parse(r.responseText) : null; } catch (e) {}
+        cb(j, ok);
+      },
+      onerror: () => cb(null, false), ontimeout: () => cb(null, false),
     }),
   };
   GM_registerMenuCommand('設定推播 token', () => {
     const t = prompt('go.kvcc.me 推播中心的同步 token（留空＝停用）', '');
     if (t !== null) env.save('token', t.trim());
   });
+  // 停 3 秒沒新回應再同步；沒寫成雲端（沒到 10 分或失敗）就等一下再試
   let timer = null;
+  const kick = (delay) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => sync(env, () => {
+      if (env.load('dirty') !== '1') return;
+      const wait = SYNC_EVERY_MS - (Date.now() - Number(env.load('syncedAt') || 0));
+      kick(Math.max(60000, wait));
+    }), delay);
+  };
   const W = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
   const X = W.XMLHttpRequest.prototype;
   const open = X.open, send = X.send;
@@ -282,7 +295,7 @@ function runUserscript() {
       try {
         const url = new URL(this.__gbfUrl, W.location.href).href;
         const text = this.responseType === '' || this.responseType === 'text' ? this.responseText : '';
-        if (observe(env, url, text)) { clearTimeout(timer); timer = setTimeout(() => sync(env, () => {}), 3000); }
+        if (observe(env, url, text)) kick(3000);
       } catch (e) {}
     });
     return send.apply(this, arguments);
